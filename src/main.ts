@@ -1,9 +1,10 @@
 #!/usr/local/bin/deno run
 import { Processor } from "./Processor.ts";
+import { translator } from "./translator.ts";
 
 const p = new Processor();
 
-p.loadCode`
+const memory = translator`
   // Stores 'A' in address 13
   LDM #10
   ADD #55
@@ -24,7 +25,9 @@ p.loadCode`
   JPN 09
 `;
 
-console.log(p.getMemorySlice(0, 16));
+console.log(memory);
+
+p.loadMemory(memory);
 
 p.runCode();
 

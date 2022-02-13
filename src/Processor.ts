@@ -1,8 +1,9 @@
 import { Opcodes } from "./Opcodes.ts";
+import { translator } from "./translator.ts";
 import { isKeyOf, isString, isStringKeyOf } from "./type-guards.ts";
 
 export enum Registers {
-  ACC = 0x01,
+  ACC = 0x00,
   IX = 0x01,
 }
 
@@ -66,10 +67,16 @@ export class Processor implements ProcessorBase {
   // private setter for the accumulator that automatically ensures that the value is an allowed integer
   private set ACC(value: number) {
     if (value > Processor.MAX_INT) {
+      this.#setFlag(3, 0);
+      this.#setFlag(2, 1);
+      this.#setFlag(1, 1);
     } else if (value < Processor.MIN_INT) {
+      this.#setFlag(3, 1);
+      this.#setFlag(2, 1);
+      this.#setFlag(1, 0);
     }
 
-    this.#ACC = this.#makeIntValid(value);
+    this.#ACC = Processor.makeIntValid(value);
   }
 
   /**
@@ -133,11 +140,11 @@ export class Processor implements ProcessorBase {
   }
 
   /** takes an int and performs underflow/overflow until it is within the necessary range */
-  #makeIntValid(int: number): number {
+  static makeIntValid(int: number): number {
     if (int > Processor.MAX_INT) {
-      return this.#makeIntValid(int % (Processor.MAX_INT + 1));
+      return Processor.makeIntValid(int % (Processor.MAX_INT + 1));
     } else if (int < Processor.MIN_INT) {
-      return this.#makeIntValid(int + Processor.MAX_INT + 1);
+      return Processor.makeIntValid(int + Processor.MAX_INT + 1);
     } else {
       return int;
     }
@@ -175,7 +182,7 @@ export class Processor implements ProcessorBase {
     return operand;
   }
 
-  #combineInstruction(opcode: number, operand: number) {
+  static combineInstruction(opcode: number, operand: number) {
     return (opcode << 8) + operand;
   }
 
@@ -184,7 +191,7 @@ export class Processor implements ProcessorBase {
     const opcode = this.#getOpcode(address);
 
     // combines the opcode with the operand
-    this.#memory[address] = this.#combineInstruction(opcode, operand);
+    this.#memory[address] = Processor.combineInstruction(opcode, operand);
   }
 
   #setOpcode(address: number, opcode: number) {
@@ -192,7 +199,7 @@ export class Processor implements ProcessorBase {
     const operand = this.#getOperand(address);
 
     // combines the opcode with the operand
-    this.#memory[address] = this.#combineInstruction(opcode, operand);
+    this.#memory[address] = Processor.combineInstruction(opcode, operand);
   }
 
   //#region Opcode implementations
@@ -266,7 +273,7 @@ export class Processor implements ProcessorBase {
 
   [Opcodes.LDM](n: number) {
     // loads the operand directly into the accumulator
-    this.ACC = this.#makeIntValid(n);
+    this.ACC = Processor.makeIntValid(n);
   }
 
   [Opcodes.LDI](address: number) {
@@ -279,7 +286,7 @@ export class Processor implements ProcessorBase {
 
   [Opcodes.LDX](address: number) {
     // calculates the address by summing the index pointer and the adress specified
-    const calculatedAddress = this.#makeIntValid(this.IX + address);
+    const calculatedAddress = Processor.makeIntValid(this.IX + address);
 
     // copy the contents at that address into the accumulator
     this.ACC = this.#getOperand(calculatedAddress);
@@ -299,7 +306,7 @@ export class Processor implements ProcessorBase {
 
   [Opcodes.LDR](n: number) {
     //loads the number n directly into the IX
-    this.IX = this.#makeIntValid(n);
+    this.IX = Processor.makeIntValid(n);
   }
 
   [Opcodes.JMP](address: number) {
@@ -379,7 +386,7 @@ export class Processor implements ProcessorBase {
 
     throw new Error(`Errored with error code ${errorCode}`);
   }
-  //#endregion Opcode implementations
+  //#endregion
 
   /** runs a command
    * @param opcode the opcode of the command
@@ -393,150 +400,31 @@ export class Processor implements ProcessorBase {
     return this[opcode](operand as number);
   }
 
-  /** regular expressions to parse a line */
-  private static lineRegex = {
-    /** lines with opcodes that take n as an operand */
-    n: /^\s*(LDM|LDR|ADD|SUB|CMP)\s+(#[0-9]+|B[0-1]+)(\s+\/\/.*)?$/,
-    /** lines with opcodes that take an address as an operand */
-    address:
-      /^ *(LDD|LDI|LDX|STO|ADD|SUB|JMP|CMP|CMI|JPE|JPN) +([0-9]+)(\s+\/\/.*)?$/,
-    /** lines with opcodes that take a register as an operand */
-    register: /^ *(MOV|INC|DEC) +([A-Z]+)(\s+\/\/.*)?$/,
-    none: /^ *(END|IN|OUT|BRK)(\s+\/\/.*)?$/,
-  };
-
   /** loads the assembly code `code` into memory  */
-  loadCode(code: string): string;
+  loadCode(code: string): Uint16Array;
   /** loads the template literal code into memory  */
-  loadCode(code: TemplateStringsArray, ...separations: unknown[]): string;
-  loadCode(first: TemplateStringsArray | string, ...separations: unknown[]) {
-    const assemblyCode = (() => {
-      // if first is a string set the assemblyCode to first directly
-      if (typeof first === "string") {
-        return first;
-      } else {
-        // if it is a template literal, join the template literal and set it as assemblyCode
-        return (
-          first[0] +
-          first
-            .slice(1)
-            .map((str, i) => separations[i] + str)
-            .join("")
-        );
-      }
-    })();
+  loadCode(code: TemplateStringsArray, ...separations: unknown[]): Uint16Array;
+  loadCode(
+    ...args: [string] | [TemplateStringsArray, ...unknown[]]
+  ): Uint16Array {
+    const memory = translator(...(args as Parameters<typeof translator>));
 
-    // split the code by lines and only take lines that have code
-    const lines = assemblyCode.split("\n").filter((line) => {
-      const strippedLine = line.replaceAll(/\s+(.*)\s+/g, "$1");
-      return strippedLine !== "" && !strippedLine.startsWith("//");
-    });
+    this.loadMemory(memory);
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      let instruction;
-      const isNumberInstruction = Processor.lineRegex.n.test(line);
-
-      if (isNumberInstruction || Processor.lineRegex.address.test(line)) {
-        let [, opcode, operand] =
-          Processor.lineRegex[isNumberInstruction ? "n" : "address"].exec(
-            line
-          )!;
-
-        if (!isKeyOf(opcode, Opcodes)) {
-          // opcode either has an address or number operand, have to set it to use the correct version
-          opcode += isNumberInstruction ? "N" : "A";
-
-          // if it still doesn't exist, throw an error
-          if (!isKeyOf(opcode, Opcodes)) {
-            throw new Error(
-              `${opcode.slice(0, -1)} isn't recognized as an opcode`
-            );
-          }
-        }
-
-        // lookup the opcode from the opcodes enum
-        const binOpcode = Opcodes[opcode];
-
-        // if it is a number instruction, extract the correct number, if not extract the correct address
-        const binOperand = isNumberInstruction
-          ? parseInt(
-              // get the operand from the number portion
-              operand.slice(1),
-              // parse it using base 10 if preceeded by a # or base 2 if preceeded by B
-              operand.charAt(0) === "#" ? 10 : 2
-            )
-          : parseInt(operand, 10);
-
-        // check that the operand fits into the allowed space
-        if (binOperand < Processor.MIN_INT || binOperand > Processor.MAX_INT) {
-          throw new Error(
-            `The operand ${operand} is not within the range of ${Processor.MIN_INT} <= operand <= ${Processor.MAX_INT}`
-          );
-        }
-
-        instruction = this.#combineInstruction(binOpcode, binOperand);
-      } else if (Processor.lineRegex.register.test(line)) {
-        let [, opcode, operand] = Processor.lineRegex.register.exec(line)!;
-
-        if (!isKeyOf(opcode, Opcodes)) {
-          // the opcode isn't recognized so it throws an error
-          throw new Error(
-            `${opcode.slice(0, -1)} isn't recognized as an opcode`
-          );
-        }
-
-        // lookup the opcode from the opcodes enum
-        let binOpcode = Opcodes[opcode];
-        let binOperand;
-
-        if (!isStringKeyOf(operand, Registers)) {
-          console.warn(
-            `tried using an invalid register ${operand}. Turned this instruction into an error one.`
-          );
-
-          binOpcode = Opcodes.ERR;
-          binOperand = ErrorCodes.UnrecognizedRegister;
-        } else {
-          binOperand = Registers[operand];
-        }
-
-        instruction = this.#combineInstruction(binOpcode, binOperand);
-      } else if (Processor.lineRegex.none.test(line)) {
-        // parse the opcode from the command
-        let [, opcode] = Processor.lineRegex.none.exec(line)!;
-
-        if (!isKeyOf(opcode, Opcodes)) {
-          // the opcode isn't recognized so it throws an error
-          throw new Error(
-            `${opcode.slice(0, -1)} isn't recognized as an opcode`
-          );
-        }
-
-        // lookup the opcode from the opcodes enum
-        const binOpcode = Opcodes[opcode];
-        const binOperand = 0x00;
-
-        instruction = this.#combineInstruction(binOpcode, binOperand);
-      } else {
-        // the opcode / operand isn't recognized
-        console.error(
-          `the line '${line}' isn't a recognized command. Replaced it with an error command`
-        );
-
-        const binOpcode = Opcodes.ERR;
-        const binOperand = ErrorCodes.UnrecognizedOpcode;
-
-        instruction = this.#combineInstruction(binOpcode, binOperand);
-      }
-
-      // Do something with instruction
-      this.#memory[i] = instruction;
-    }
-
-    return assemblyCode;
+    return memory;
   }
 
+  /** loads a Uint16Array into memory */
+  loadMemory(memory: Uint16Array): void {
+    for (let i = 0; i < memory.length; i++) {
+      this.#memory[i] = memory[i];
+    }
+  }
+
+  /**
+   * Runs a program in memory starting from the `PC`
+   * @param PC the initial program counter (default: 0)
+   */
   runCode(PC = 0) {
     this.PC = PC;
     let res: InstructionReturns;
