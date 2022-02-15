@@ -35,7 +35,7 @@ type ProcessorBase =
     [K in Exclude<keyof typeof Registers, number>]: number;
   }
   & {
-    [Opcode in Opcodes]?: (this: Processor, operand: number) => InstructionReturns;
+    [Opcode in Opcodes]: (this: Processor, operand: number) => InstructionReturns;
   };
 
 export class Processor implements ProcessorBase {
@@ -407,6 +407,46 @@ export class Processor implements ProcessorBase {
     }
 
     throw new Error(`Errored with error code ${errorCode}`);
+  }
+
+  [Opcodes.LSL](n: number): InstructionReturns {
+    // shift the accumulator by n bits left
+    this.ACC <<= n;
+  }
+
+  [Opcodes.LSR](n: number): InstructionReturns {
+    // logically shift the accumulator n bits right
+    this.ACC >>>= n;
+  }
+
+  [Opcodes.ANDN](n: number): InstructionReturns {
+    // ands the number and the contents of the accumulator
+    this.ACC &= n;
+  }
+
+  [Opcodes.ANDA](address: number): InstructionReturns {
+    // ands the value at address and the contents of the accumulator
+    this.ACC &= this.#getOperand(address);
+  }
+
+  [Opcodes.ORN](n: number): InstructionReturns {
+    // ors the number and the contents of the accumulator
+    this.ACC |= n;
+  }
+
+  [Opcodes.ORA](address: number): InstructionReturns {
+    // ors the value at address and the contents of the accumulator
+    this.ACC |= this.#getOperand(address);
+  }
+
+  [Opcodes.XORN](n: number): InstructionReturns {
+    // xors the number and the contents of the accumulator
+    this.ACC ^= n;
+  }
+
+  [Opcodes.XORA](address: number): InstructionReturns {
+    // xors the value at address and the contents of the accumulator
+    this.ACC ^= this.#getOperand(address);
   }
   //#endregion
 

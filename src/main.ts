@@ -152,3 +152,64 @@ cow: ENS
      IN #1
      MOV 0
 `;
+
+console.log("\nPROGRAM 5");
+console.log("".padStart(20, "-"));
+console.log(`bitwise operations`);
+
+// program from page 127 of the AS textbook
+p.loadCode(`
+shift_tests: LDM #${8}
+     LSL #${1}
+     // ensures the value is ${8 << 1}
+     CMP #${8 << 1}
+     JPN err
+     // shifts it right by ${3}
+     LSR #${3}
+     // ensures the value is ${(8 << 1) >>> 3}
+     CMP #${(8 << 1) >>> 3}
+     JPN err
+
+testing_val: #${0b10101010}
+
+and_tests: LDM #${0b10101010}
+     AND #${0b01011010}
+     // ensures the value is ${0b10101010 & 0b01010101}
+     CMP #${0b10101010 & 0b01010101}
+     JPN err
+     LDM #${0b01011010}
+     AND testing_val
+     // ensures the value is ${0b10101010 & 0b01010101}
+     CMP #${0b10101010 & 0b01010101}
+     JPN err
+
+or_tests: LDM #${0b10101010}
+     OR #${0b01011010}
+     // ensures the value is ${0b10101010 | 0b01010101}
+     CMP #${0b10101010 | 0b01010101}
+     JPN err
+     LDM #${0b01011010}
+     OR testing_val
+     // ensures the value is ${0b10101010 | 0b01010101}
+     CMP #${0b10101010 | 0b01010101}
+     JPN err
+
+xor_tests: LDM #${0b10101010}
+     XOR #${0b01011010}
+     // ensures the value is ${0b10101010 ^ 0b01010101}
+     CMP #${0b10101010 ^ 0b01010101}
+     JPN err
+     LDM #${0b01011010}
+     XOR testing_val
+     // ensures the value is ${0b10101010 ^ 0b01010101}
+     CMP #${0b10101010 ^ 0b01010101}
+     JPN err
+
+     END
+
+err: ERR #5
+`);
+
+p.runCode();
+
+p.clearMemory();

@@ -34,15 +34,17 @@ const isNInstruction = (
 
 // type generated from the opcodes of all the possible instructions
 type Instructions = {
-  [K in Exclude<keyof typeof Opcodes, number>]: Last<StrToChars<K>> extends [
-    // if the opcode ends in N or A, then remove that character
-    "N" | "A",
-    infer Rest,
-  ] ? Rest extends string[] ? Rest["length"] extends 3 ? CharsToStr<Rest>
-  : K
-  : K
+  [K in Exclude<keyof typeof Opcodes, number>]: Last<StrToChars<K>> extends [infer Last, infer Rest]
+    ? Rest extends string[] ? // if the last character is A and there is an N variant, remove the A
+    Last extends "A" ? `${CharsToStr<Rest>}N` extends keyof typeof Opcodes ? CharsToStr<Rest>
+    : K
+    : // if the last character is N and there is an A variant, remove the N
+    Last extends "N" ? `${CharsToStr<Rest>}A` extends keyof typeof Opcodes ? CharsToStr<Rest>
+    : K
+    : K
+    : K
     : K;
-}[Exclude<keyof typeof Opcodes, number>];
+}[keyof typeof Opcodes];
 
 // Record with the instructions and the type of their operands
 const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTypes>>>()(
@@ -68,6 +70,11 @@ const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTy
     OUT: InstructionTypes.None,
     STO: InstructionTypes.Address,
     SUB: InstructionTypes.AddressOrN,
+    LSL: InstructionTypes.N,
+    LSR: InstructionTypes.N,
+    AND: InstructionTypes.AddressOrN,
+    OR: InstructionTypes.AddressOrN,
+    XOR: InstructionTypes.AddressOrN,
   } as const,
 );
 

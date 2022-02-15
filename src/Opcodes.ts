@@ -42,12 +42,38 @@ export enum Opcodes {
   JPE,
   /** `JPN <address>`    Following a compare instruction, jump to <address> if the compare was False */
   JPN,
-  /** `IN`              Key in a character and store its ASCII value in ACC. Defaults to 0 if no character is entered */
+  /** `IN`              Key in a character and store its ASCII value in ACC. Defaults to
+   * 0 if no character is entered */
   IN,
   /** `OUT`             Output to the screen the character whose ASCII value is stored in ACC */
   OUT,
-  /** `BRK`             adds a breakpoint and prints dumps the current memory */
-  BRK,
-  /** `ERR #n`          Errors with error code n */
+  /** `LSL #n`          Bits in ACC are shifted logically n places to the left. Zeros are
+   * introduced on the right-hand end */
+  LSL,
+  /** `LSR #n`          Bits in ACC are shifted logically n places to the right. Zeros are
+   * introduced on the left-hand end */
+  LSR,
+  /** `AND #n`          Bitwise AND operation of the contents of ACC with the operand */
+  ANDN,
+  /** `AND <address>`   Bitwise AND operation of the contents of ACC with the
+   * contents of <address> */
+  ANDA,
+  /** `XOR #n`          Bitwise XOR operation of the contents of ACC with the operand */
+  XORN,
+  /** `XOR <address>`   Bitwise XOR operation of the contents of ACC with the contents of <address> */
+  XORA,
+  /** `OR #n`           Bitwise XOR operation of the contents of ACC with the contents of <address> */
+  ORN,
+  /** `OR <address>`    Bitwise XOR operation of the contents of ACC with the contents of <address> */
+  ORA,
+
+  // Non-standard instructions
+  /** `BRK`             adds a breakpoint and prints dumps the current memory
+   *
+   * __WARNING: NON-STANDARD INSTRUCTION__ */
+  BRK = 0xfe,
+  /** `ERR #n`          Errors with error code n
+   *
+   * __WARNING: NON-STANDARD INSTRUCTION__ */
   ERR = 0xff,
 }
