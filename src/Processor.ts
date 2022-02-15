@@ -1,6 +1,7 @@
 import { Opcodes } from "./Opcodes.ts";
 import { translator } from "./translator.ts";
-import { isKeyOf, isString, isStringKeyOf } from "./type-guards.ts";
+import { isKeyOf } from "./type-guards.ts";
+import { toBaseNString } from "./utils.ts";
 
 export enum Registers {
   ACC = 0x00,
@@ -8,8 +9,12 @@ export enum Registers {
 }
 
 export enum ErrorCodes {
+  MalformedInstruction,
   UnrecognizedRegister,
   UnrecognizedOpcode,
+  UnrecognizedInstruction,
+  UnrecognizedOperand,
+  FailedAssertion,
 }
 
 type InstructionReturns =
@@ -28,10 +33,7 @@ type InstructionReturns =
 type ProcessorBase = {
   [K in Exclude<keyof typeof Registers, number>]: number;
 } & {
-  [Opcode in Opcodes]?: (
-    this: Processor,
-    operand: number
-  ) => InstructionReturns;
+  [Opcode in Opcodes]?: (this: Processor, operand: number) => InstructionReturns;
 };
 
 export class Processor implements ProcessorBase {
@@ -74,6 +76,10 @@ export class Processor implements ProcessorBase {
       this.#setFlag(3, 1);
       this.#setFlag(2, 1);
       this.#setFlag(1, 0);
+    } else {
+      this.#setFlag(0, 0);
+      this.#setFlag(0, 0);
+      this.#setFlag(0, 0);
     }
 
     this.#ACC = Processor.makeIntValid(value);
@@ -83,14 +89,14 @@ export class Processor implements ProcessorBase {
    * Status register - 4 bit
    * ```plaintext
    * Organized as:
-   * N - Negative flag //TODO
-   * V - oVerflow flag //TODO
-   * C - Carry flag    //TODO
+   * N - Negative flag
+   * V - oVerflow flag
+   * C - Carry flag
    * Z - set if the result of a logic operation is Zero
    * ```
    */
   get SR() {
-    return this.#SR;
+    return toBaseNString(this.#SR, 2, 4);
   }
 
   /** set the negative flag */
@@ -109,7 +115,7 @@ export class Processor implements ProcessorBase {
     if (bit) {
       this.#SR |= 1 << n;
     } else {
-      this.#SR &= 0b1111 - (1 << n);
+      this.#SR &= 0xf - (1 << n);
     }
   }
 
@@ -125,18 +131,28 @@ export class Processor implements ProcessorBase {
     if (n !== 0 && n !== 1 && n !== 2 && n !== 3) {
       throw new Error(`tried to get a flag that's not valid. flag = ${n}`);
     }
-    return ((this.SR & (1 << n)) >> n) as 0 | 1;
+    return ((this.#SR & (1 << n)) >> n) as 0 | 1;
   }
 
-  getMemory(index: number) {
+  /** gets the value in memory at a given index */
+  getMemoryAt(index: number) {
     return this.#memory[index];
   }
 
   /** returns a slice of memory as 4 digit hexadecimal */
   getMemorySlice(start?: number, end?: number) {
-    return [...this.#memory.slice(start, end)].map((n) =>
-      n.toString(16).padStart(4, "0")
-    );
+    return [...this.#memory.slice(start, end)].map((n) => toBaseNString(n, 16, 4));
+  }
+
+  /** clears all the memory */
+  clearMemory() {
+    this.#ACC = 0;
+    this.#SR = 0;
+    this.IX = 0;
+
+    for (let i = 0; i < this.#memory.length; i++) {
+      this.#memory[i] = 0x0000;
+    }
   }
 
   /** takes an int and performs underflow/overflow until it is within the necessary range */
@@ -207,7 +223,7 @@ export class Processor implements ProcessorBase {
     // adds a breakpoint and prints dumps the current memory
     console.log({
       ...this,
-      SR: this.SR.toString(2).padStart(4, "0"),
+      SR: this.SR,
       ACC: this.ACC,
       memory: this.#memory.slice(),
     });
@@ -316,10 +332,10 @@ export class Processor implements ProcessorBase {
 
   [Opcodes.IN](_?: number) {
     //input a character from the user
-    const char = (prompt("input a character: ") || "")[0];
+    let char = prompt("input a character: ");
 
     // gets the ascii for that character
-    const ascii = char.charCodeAt(0);
+    const ascii = (char || "\x00").charCodeAt(0);
 
     // stores the ascii into the accumulator
     this.ACC = ascii;
@@ -330,7 +346,7 @@ export class Processor implements ProcessorBase {
     const char = String.fromCharCode(this.ACC);
 
     // outputs the char
-    console.log(char);
+    Deno.stdout.writeSync(new Uint8Array([this.ACC]));
   }
 
   [Opcodes.CMPN](n: number) {
@@ -379,9 +395,7 @@ export class Processor implements ProcessorBase {
 
   [Opcodes.ERR](errorCode: number) {
     if (isKeyOf(errorCode, ErrorCodes)) {
-      throw new Error(
-        `Error: ${ErrorCodes[errorCode]}, error code: ${errorCode}`
-      );
+      throw new Error(`Error: ${ErrorCodes[errorCode]}, error code: ${errorCode}`);
     }
 
     throw new Error(`Errored with error code ${errorCode}`);
@@ -404,9 +418,7 @@ export class Processor implements ProcessorBase {
   loadCode(code: string): Uint16Array;
   /** loads the template literal code into memory  */
   loadCode(code: TemplateStringsArray, ...separations: unknown[]): Uint16Array;
-  loadCode(
-    ...args: [string] | [TemplateStringsArray, ...unknown[]]
-  ): Uint16Array {
+  loadCode(...args: [string] | [TemplateStringsArray, ...unknown[]]): Uint16Array {
     const memory = translator(...(args as Parameters<typeof translator>));
 
     this.loadMemory(memory);
@@ -446,7 +458,9 @@ export class Processor implements ProcessorBase {
 
       res = this.runInstruction(this.CIR as Opcodes, this.MDR);
 
-      if (res?.jump) {
+      debugger;
+
+      if (typeof res?.jump === "number") {
         this.PC = res.jump;
       }
     } while (!res?.end);

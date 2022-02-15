@@ -4,9 +4,9 @@ export function isKeyOf<O>(key: unknown, obj: O): key is keyof O {
 
 export const isString = (v: unknown): v is string => typeof v === "string";
 
-export function isStringKeyOf<O>(
-  key: unknown,
-  obj: O
-): key is string & keyof O {
-  return isString(key) && isKeyOf(key, obj);
-}
+export const isStringKeyOf = <O>(key: unknown, obj: O): key is string & keyof O =>
+  isString(key) && isKeyOf(key, obj);
+
+export const isVoid = (v: unknown): v is void => v === void v;
+
+export const isReadonlyArray = (v: unknown): v is ReadonlyArray<unknown> => Array.isArray(v);

@@ -5,9 +5,11 @@ export enum Opcodes {
   LDM,
   /** `LDD <address>`   Direct addressing. Load the contents of the location at the given address to ACC*/
   LDD,
-  /** `LDI <address>`   Indirect addressing. The address to be used is at the given address. Load the contents of this second address to ACC */
+  /** `LDI <address>`   Indirect addressing. The address to be used is at the given address. Load the contents
+   * of this second address to ACC */
   LDI,
-  /** `LDX <address>`   Indexed addressing. Form the address from <address> + the contents of the index register. Copy the contents of this calculated address to ACC */
+  /** `LDX <address>`   Indexed addressing. Form the address from <address> + the contents of the index register.
+   * Copy the contents of this calculated address to ACC */
   LDX,
   /** `LDR #n`          Immediate addressing. Load the number n to IX */
   LDR,
@@ -40,7 +42,7 @@ export enum Opcodes {
   JPE,
   /** `JPN <address>`    Following a compare instruction, jump to <address> if the compare was False */
   JPN,
-  /** `IN`              Key in a character and store its ASCII value in ACC */
+  /** `IN`              Key in a character and store its ASCII value in ACC. Defaults to 0 if no character is entered */
   IN,
   /** `OUT`             Output to the screen the character whose ASCII value is stored in ACC */
   OUT,
