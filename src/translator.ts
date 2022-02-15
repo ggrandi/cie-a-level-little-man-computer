@@ -4,6 +4,8 @@ import { isKeyOf, isStringKeyOf } from "./type-guards.ts";
 import { CharsToStr, Last, MapKey, StrToChars } from "./type-utils.ts";
 import { match, spaceString } from "./utils.ts";
 
+import { red } from "https://deno.land/std@0.125.0/fmt/colors.ts";
+
 const enum InstructionTypes {
   N,
   Address,
@@ -35,8 +37,8 @@ const isNInstruction = (
 // type generated from the opcodes of all the possible instructions
 type Instructions = {
   [K in Exclude<keyof typeof Opcodes, number>]: Last<StrToChars<K>> extends [infer Last, infer Rest]
-    ? Rest extends string[] ? // if the last character is A and there is an N variant, remove the A
-    Last extends "A" ? `${CharsToStr<Rest>}N` extends keyof typeof Opcodes ? CharsToStr<Rest>
+    ? Rest extends string[] // if the last character is A and there is an N variant, remove the A
+    ? Last extends "A" ? `${CharsToStr<Rest>}N` extends keyof typeof Opcodes ? CharsToStr<Rest>
     : K
     : // if the last character is N and there is an A variant, remove the N
     Last extends "N" ? `${CharsToStr<Rest>}A` extends keyof typeof Opcodes ? CharsToStr<Rest>
@@ -94,14 +96,28 @@ const isAllowedInt = (int: number) => Processor.MIN_INT <= int && Processor.MAX_
 /** gets an assembly number from a string or gives a reason as to why it is invalid */
 const getN = (n: string): IsValid<number> => {
   // checks if it has the correct prefix
-  const hasPrefix = n[0] === "B" || n[0] === "#" || n[0] === "&";
+  const hasPrefix = n[0] === "#";
 
   if (!hasPrefix) {
-    return [false, "have to prefix it with B for binary, # for decimal, or & for hexadecimal"];
+    return [false, "have to prefix number with a #"];
+  }
+
+  const hasNonDenaryBase = isNaN(Number(n[1]));
+
+  if (hasNonDenaryBase && !"B&".includes(n[1])) {
+    return [
+      false,
+      `the only other bases allowed are B (binary) or & (hexadecimal). '${
+        n[1]
+      }' was not recognized.`,
+    ];
   }
 
   // converts it into an integer
-  const int = parseInt(n.slice(1), n[0] === "B" ? 2 : n[0] === "#" ? 10 : 16);
+  const int = parseInt(
+    n.slice(hasNonDenaryBase ? 2 : 1),
+    hasNonDenaryBase ? (n[1] === "B" ? 2 : 16) : 10,
+  );
 
   // checks if the integer is actually a number
   if (isNaN(int)) {
@@ -252,7 +268,7 @@ type TranslatorLogger = (lineNumber: number, errors: string[]) => void;
 const defaultLogger: TranslatorLogger = (lineNumber: number, errors: string[]) => {
   const lineNumberWarning = `line ${lineNumber}: `;
 
-  console.error(lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`));
+  console.error(red(lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`)));
 };
 
 /** the type to make translator output more values */

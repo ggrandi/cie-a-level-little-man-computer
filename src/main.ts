@@ -20,14 +20,14 @@ p.loadCode`
   LDX 18
   OUT
   // outputs a new line character
-  LDM &A
+  LDM #&A
   OUT
   // adds 32 to output 'a'
   LDD 20
   ADD #32
   OUT
   // outputs a new line character
-  LDM &a
+  LDM #&a
   OUT
   // Loops until the user enters nothing
   IN
@@ -52,13 +52,13 @@ start:  LDD first
         ADD second
         ADD third
         STO total
-        CMP &60 // makes sure the value stored was the correct sum in order to check the processor
+        CMP #&60 // makes sure the value stored was the correct sum in order to check the processor
         JPN err
         END
 err:    ERR #5
-first:  &10
-second: &30
-third:  &20
+first:  #&10
+second: #&30
+third:  #&20
 total:         // implied to start at 0
 `;
 
@@ -83,19 +83,19 @@ start:  LDX string
         INC IX
         JMP start
 end:    END
-string: &48
-        &65
-        &6C
-        &6C
-        &6F
-        &20
-        &57
-        &6F
-        &72
-        &6C
-        &64
-        &21
-        &0A
+string: #&48
+        #&65
+        #&6C
+        #&6C
+        #&6F
+        #&20
+        #&57
+        #&6F
+        #&72
+        #&6C
+        #&64
+        #&21
+        #&0A
 `;
 
 p.runCode();
@@ -127,7 +127,7 @@ number: #5
         #7
         #3
 
-counter: 
+counter:
 total:
 `;
 
@@ -147,6 +147,7 @@ translator.bind(
     logger: console.log,
   }),
 )`
+label: FOO bar baz
 label #2
 cow: ENS
      IN #1
@@ -155,7 +156,10 @@ cow: ENS
 
 console.log("\nPROGRAM 5");
 console.log("".padStart(20, "-"));
-console.log(`bitwise operations`);
+console.log(`bitwise operations\nerrors if any of the tests fail`);
+
+const a = 0b10101010;
+const b = 0b01011010;
 
 // program from page 127 of the AS textbook
 p.loadCode(`
@@ -170,44 +174,43 @@ shift_tests: LDM #${8}
      CMP #${(8 << 1) >>> 3}
      JPN err
 
-testing_val: #${0b10101010}
-
-and_tests: LDM #${0b10101010}
-     AND #${0b01011010}
-     // ensures the value is ${0b10101010 & 0b01010101}
-     CMP #${0b10101010 & 0b01010101}
+and_tests: LDM #${a}
+     AND #${b}
+     // ensures the value is ${a & b}
+     CMP #${a & b}
      JPN err
-     LDM #${0b01011010}
+     LDM #${b}
      AND testing_val
-     // ensures the value is ${0b10101010 & 0b01010101}
-     CMP #${0b10101010 & 0b01010101}
+     // ensures the value is ${a & b}
+     CMP #${a & b}
      JPN err
 
-or_tests: LDM #${0b10101010}
-     OR #${0b01011010}
-     // ensures the value is ${0b10101010 | 0b01010101}
-     CMP #${0b10101010 | 0b01010101}
+or_tests: LDM #${a}
+     OR #${b}
+     // ensures the value is ${a | b}
+     CMP #${a | b}
      JPN err
-     LDM #${0b01011010}
+     LDM #${b}
      OR testing_val
-     // ensures the value is ${0b10101010 | 0b01010101}
-     CMP #${0b10101010 | 0b01010101}
+     // ensures the value is ${a | b}
+     CMP #${a | b}
      JPN err
 
-xor_tests: LDM #${0b10101010}
-     XOR #${0b01011010}
-     // ensures the value is ${0b10101010 ^ 0b01010101}
-     CMP #${0b10101010 ^ 0b01010101}
+xor_tests: LDM #${a}
+     XOR #${b}
+     // ensures the value is ${a ^ b}
+     CMP #${a ^ b}
      JPN err
-     LDM #${0b01011010}
+     LDM #${b}
      XOR testing_val
-     // ensures the value is ${0b10101010 ^ 0b01010101}
-     CMP #${0b10101010 ^ 0b01010101}
+     // ensures the value is ${a ^ b}
+     CMP #${a ^ b}
      JPN err
 
      END
 
 err: ERR #5
+testing_val: #${a}
 `);
 
 p.runCode();
