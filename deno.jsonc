@@ -1,0 +1,41 @@
+{
+  "$schema": "https://deno.land/x/deno@v1.18.2/cli/schemas/config-file.v1.json",
+  "compilerOptions": {
+    "removeComments": true,
+    "lib": ["deno.window"],
+    "strict": true,
+    "strictBindCallApply": true,
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "fmt": {
+    "files": { "include": ["./src/"] },
+    "options": {
+      "lineWidth": 100
+    }
+  },
+  "lint": {
+    "files": {
+      "include": ["src/"],
+      "exclude": ["src/testdata/"]
+    },
+    "rules": {
+      "tags": ["recommended"],
+      "include": [
+        "eqeqeq",
+        "ban-untagged-todo",
+        "camelcase",
+        "explicit-module-boundary-types",
+        "no-eval",
+        "prefer-ascii"
+      ]
+    }
+  }
+}

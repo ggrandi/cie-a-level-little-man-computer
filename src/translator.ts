@@ -1,5 +1,5 @@
 import { Opcodes } from "./Opcodes.ts";
-import { Processor, Registers, ErrorCodes } from "./Processor.ts";
+import { ErrorCodes, Processor, Registers } from "./Processor.ts";
 import { isKeyOf, isStringKeyOf } from "./type-guards.ts";
 import { CharsToStr, Last, MapKey, StrToChars } from "./type-utils.ts";
 import { match, spaceString } from "./utils.ts";
@@ -14,63 +14,62 @@ const enum InstructionTypes {
 
 /** returns whether the instruction can take an address parameter */
 const isAddressInstruction = (
-  instructionType: InstructionTypes
+  instructionType: InstructionTypes,
 ): instructionType is InstructionTypes.Address | InstructionTypes.AddressOrN =>
   instructionType === InstructionTypes.Address || instructionType === InstructionTypes.AddressOrN;
 
 /** returns whether the instruction can take an n parameter */
 const isNInstruction = (
-  instructionType: InstructionTypes
+  instructionType: InstructionTypes,
 ): instructionType is InstructionTypes.N | InstructionTypes.AddressOrN =>
   instructionType === InstructionTypes.N || instructionType === InstructionTypes.AddressOrN;
 
-/** returns whether the instruction can take an AddressOrN parameter */
-const isAddressOrNInstruction = (
-  instructionType: InstructionTypes
-): instructionType is InstructionTypes.N | InstructionTypes.Address | InstructionTypes.AddressOrN =>
-  instructionType === InstructionTypes.N ||
-  instructionType === InstructionTypes.Address ||
-  instructionType === InstructionTypes.AddressOrN;
+// /** returns whether the instruction can take an AddressOrN parameter */
+// const isAddressOrNInstruction = (
+//   instructionType: InstructionTypes
+// ): instructionType is InstructionTypes.N | InstructionTypes.Address | InstructionTypes.AddressOrN =>
+//   instructionType === InstructionTypes.N ||
+//   instructionType === InstructionTypes.Address ||
+//   instructionType === InstructionTypes.AddressOrN;
 
 // type generated from the opcodes of all the possible instructions
 type Instructions = {
   [K in Exclude<keyof typeof Opcodes, number>]: Last<StrToChars<K>> extends [
     // if the opcode ends in N or A, then remove that character
     "N" | "A",
-    infer Rest
-  ]
-    ? Rest extends string[]
-      ? Rest["length"] extends 3
-        ? CharsToStr<Rest>
-        : K
-      : K
+    infer Rest,
+  ] ? Rest extends string[] ? Rest["length"] extends 3 ? CharsToStr<Rest>
+  : K
+  : K
     : K;
 }[Exclude<keyof typeof Opcodes, number>];
 
 // Record with the instructions and the type of their operands
-const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTypes>>>()({
-  ADD: InstructionTypes.AddressOrN,
-  BRK: InstructionTypes.None,
-  CMI: InstructionTypes.Address,
-  CMP: InstructionTypes.AddressOrN,
-  DEC: InstructionTypes.Register,
-  END: InstructionTypes.None,
-  ERR: InstructionTypes.N,
-  IN: InstructionTypes.None,
-  INC: InstructionTypes.Register,
-  JMP: InstructionTypes.Address,
-  JPE: InstructionTypes.Address,
-  JPN: InstructionTypes.Address,
-  LDD: InstructionTypes.Address,
-  LDI: InstructionTypes.Address,
-  LDM: InstructionTypes.N,
-  LDR: InstructionTypes.N,
-  LDX: InstructionTypes.Address,
-  MOV: InstructionTypes.Register,
-  OUT: InstructionTypes.None,
-  STO: InstructionTypes.Address,
-  SUB: InstructionTypes.AddressOrN,
-} as const);
+const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTypes>>>()(
+  {
+    ADD: InstructionTypes.AddressOrN,
+    BRK: InstructionTypes.None,
+    CMI: InstructionTypes.Address,
+    CMP: InstructionTypes.AddressOrN,
+    DEC: InstructionTypes.Register,
+    END: InstructionTypes.None,
+    ERR: InstructionTypes.N,
+    IN: InstructionTypes.None,
+    INC: InstructionTypes.Register,
+    JMP: InstructionTypes.Address,
+    JPE: InstructionTypes.Address,
+    JPN: InstructionTypes.Address,
+    LDD: InstructionTypes.Address,
+    LDI: InstructionTypes.Address,
+    LDM: InstructionTypes.N,
+    LDR: InstructionTypes.N,
+    LDX: InstructionTypes.Address,
+    MOV: InstructionTypes.Register,
+    OUT: InstructionTypes.None,
+    STO: InstructionTypes.Address,
+    SUB: InstructionTypes.AddressOrN,
+  } as const,
+);
 
 // create the comment delimiter and regex to remove comments
 const commentDelimiter = "//";
@@ -79,8 +78,7 @@ const commentRegex = new RegExp(`\\s*${commentDelimiter}.*$`);
 // types for the validation functions
 type IsValid<T> = [isValid: false, reason: string] | [isValid: true, data: T];
 type Valid<V extends IsValid<unknown>> = V extends [true, unknown] ? V : never;
-type Invalid<V extends IsValid<unknown> = IsValid<unknown>> = V extends [false, unknown]
-  ? V
+type Invalid<V extends IsValid<unknown> = IsValid<unknown>> = V extends [false, unknown] ? V
   : never;
 
 /** whether a given integer is within the safe range of the Processor */
@@ -241,26 +239,53 @@ const getOperand = (operand?: string) => {
   return { n, address, register, label, type };
 };
 
-const formatErrorMessage = (lineNumber: number, message: string[]) => {
+type TranslatorLogger = (lineNumber: number, errors: string[]) => void;
+
+/** the default logger for translator */
+const defaultLogger: TranslatorLogger = (lineNumber: number, errors: string[]) => {
   const lineNumberWarning = `line ${lineNumber}: `;
 
-  return lineNumberWarning + message.join(`\n${spaceString(lineNumberWarning.length)}`);
+  console.error(lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`));
+};
+
+/** the type to make translator output more values */
+export type TranslatorThis = {
+  logger?: TranslatorLogger | undefined;
+  getLabels?: ((labelMap: ReadonlyMap<string, number>) => void) | undefined;
 };
 
 /**
  * loads the assembly code `code` into memory
+ *
+ * use `translator.bind` or `translator.apply` to make it output values elsewhere
  * @returns the memory to load
  */
-export function translator(code: string): Uint16Array;
+export function translator(this: TranslatorThis | void, code: string): Uint16Array;
 /**
  * loads the template literal code into memory
+ *
+ * use `translator.bind` or `translator.apply` to make it output values elsewhere
  * @returns the memory to load
  */
-export function translator(code: TemplateStringsArray, ...separations: unknown[]): Uint16Array;
 export function translator(
+  this: TranslatorThis | void,
+  code: TemplateStringsArray,
+  ...separations: unknown[]
+): Uint16Array;
+export function translator(
+  this: TranslatorThis | void,
   first: TemplateStringsArray | string,
   ...separations: unknown[]
 ): Uint16Array {
+  let hasErrored = false;
+
+  const logger: TranslatorLogger = this?.logger ?? defaultLogger;
+
+  const logError: TranslatorLogger = (...args: Parameters<TranslatorLogger>) => {
+    hasErrored = true;
+    logger(...args);
+  };
+
   const assemblyCode = (() => {
     // if first is a string set the assemblyCode to first directly
     if (typeof first === "string") {
@@ -277,8 +302,6 @@ export function translator(
     }
   })();
 
-  let hasErrored = false;
-
   // split the code by lines and only take lines that have code
   const lines = assemblyCode
     .split("\n")
@@ -288,6 +311,15 @@ export function translator(
       return { line, lineNumber } as const;
     })
     .filter(({ line }) => line !== "");
+
+  // checks that the processor can load the code into memory
+  if (lines.length > Processor.MAX_INT) {
+    logError(0, [
+      `the program given is too long. The max amount of instructions is ${Processor.MAX_INT}.`,
+    ]);
+
+    return new Uint16Array(0);
+  }
 
   // initialize the memory that I will be storing the lines in
   const memory = new Uint16Array(lines.length);
@@ -299,7 +331,7 @@ export function translator(
   const parsedLines = lines.map(
     (
       { line, lineNumber },
-      address
+      address,
     ): Readonly<{
       opcode: number;
       operand: number | MapKey<typeof labelMap>;
@@ -317,10 +349,7 @@ export function translator(
 
       // error if too many operators on the same line
       if (operators.length > 3) {
-        console.error(
-          formatErrorMessage(lineNumber, [`cannot have more than three operators on a line`])
-        );
-        hasErrored = true;
+        logError(lineNumber, [`cannot have more than three operators on a line`]);
         return malformedInstructionError;
       }
 
@@ -332,11 +361,7 @@ export function translator(
           labelMap.set(labelDeclaration[1], address);
         } else {
           // cannot overwrite label so error
-          console.error(
-            formatErrorMessage(lineNumber, [
-              `the label ${labelDeclaration[1]} has already been used`,
-            ])
-          );
+          logError(lineNumber, [`the label ${labelDeclaration[1]} has already been used`]);
         }
 
         // remove the label from the operators
@@ -344,11 +369,8 @@ export function translator(
       }
 
       if (operators.length === 0) {
-        // line with only a label
-        console.error(formatErrorMessage(lineNumber, ["the line cannot just contain a label"]));
-
-        hasErrored = true;
-        return malformedInstructionError;
+        // line with only a label so implied `END 0` instruction
+        return { lineNumber, opcode: 0, operand: 0 };
       }
 
       // next operand is either an opcode or a number so checks it
@@ -367,7 +389,7 @@ export function translator(
       if (!instructionType[0] && operand.type?.[0] !== InstructionTypes.N) {
         if (operators.length === 3) {
           // there is an issue with the label
-          console.error(formatErrorMessage(lineNumber, [labelDeclaration[1]]));
+          logError(lineNumber, [labelDeclaration[1]]);
         } else if (operators.length === 2) {
           // possible combinations (where INS is an instruction):
           // label: INS
@@ -379,48 +401,36 @@ export function translator(
 
           if (secondInstruction[0]) {
             // if the second value is an instruction, then there is an issue with the label
-            console.error(formatErrorMessage(lineNumber, [labelDeclaration[1]]));
+            logError(lineNumber, [labelDeclaration[1]]);
           } else if (
             secondOperand.type?.[0] === InstructionTypes.N ||
             secondOperand.type?.[0] === InstructionTypes.AddressOrN
           ) {
             // if the second value is a number, it could be either an address or a label issue
-            console.error(
-              formatErrorMessage(lineNumber, [
-                `either label error: ${labelDeclaration[1]}`,
-                `or instruction error: ${instructionType[1]}`,
-              ])
-            );
+            logError(lineNumber, [
+              `either label error: ${labelDeclaration[1]}`,
+              `or instruction error: ${instructionType[1]}`,
+            ]);
           } else {
-            console.error(
-              formatErrorMessage(lineNumber, [
-                `an unknown error has occured near '${operators[0]}'`,
-              ])
-            );
+            logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
           }
         } else if (operators.length === 1) {
           // it has to be either an opcode or a number and since both aren't true, display both error messages
-          console.error(
-            formatErrorMessage(lineNumber, [
-              `either instruction error: ${instructionType[1]}`,
-              `or number error: ${operand.n[1]}`,
-            ])
-          );
+          logError(lineNumber, [
+            `either instruction error: ${instructionType[1]}`,
+            `or number error: ${operand.n[1]}`,
+          ]);
         } else {
-          console.error(
-            formatErrorMessage(lineNumber, [`an unknown error has occured near '${operators[0]}'`])
-          );
+          logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
         }
 
-        hasErrored = true;
         return malformedInstructionError;
       }
 
       // means all of the checks have failed, if so error
       if (!operand.type) {
-        console.error(formatErrorMessage(lineNumber, [`malformed operand '${operators[0]}'`]));
+        logError(lineNumber, [`malformed operand '${operators[0]}'`]);
 
-        hasErrored = true;
         return malformedInstructionError;
       }
 
@@ -439,12 +449,9 @@ export function translator(
           opcode = Opcodes[numberInstruction];
         } else {
           // operand is neither a number or address
-          console.error(
-            formatErrorMessage(lineNumber, [
-              `the operand for ${instruction} should either be a number or address`,
-            ])
-          );
-          hasErrored = true;
+          logError(lineNumber, [
+            `the operand for ${instruction} should either be a number or address`,
+          ]);
           return malformedInstructionError;
         }
       } else if (instructionType[1] === InstructionTypes.N) {
@@ -453,10 +460,8 @@ export function translator(
           opcode = Opcodes[instruction];
         } else {
           // operand is not a number so error
-          console.error(
-            formatErrorMessage(lineNumber, [`the operand for ${instruction} should be a number`])
-          );
-          hasErrored = true;
+          logError(lineNumber, [`the operand for ${instruction} should be a number`]);
+
           return malformedInstructionError;
         }
       } else if (instructionType[1] === InstructionTypes.Address) {
@@ -465,10 +470,7 @@ export function translator(
           opcode = Opcodes[instruction];
         } else {
           // operand is not a address so error
-          console.error(
-            formatErrorMessage(lineNumber, [`the operand for ${instruction} should be an address`])
-          );
-          hasErrored = true;
+          logError(lineNumber, [`the operand for ${instruction} should be an address`]);
           return malformedInstructionError;
         }
       } else if (instructionType[1] === InstructionTypes.Register) {
@@ -477,10 +479,7 @@ export function translator(
           opcode = Opcodes[instruction];
         } else {
           // operand is not a address so error
-          console.error(
-            formatErrorMessage(lineNumber, [`the operand for ${instruction} should be a register`])
-          );
-          hasErrored = true;
+          logError(lineNumber, [`the operand for ${instruction} should be a register`]);
           return malformedInstructionError;
         }
       } else if (instructionType[1] === InstructionTypes.None) {
@@ -489,19 +488,17 @@ export function translator(
           opcode = Opcodes[instruction];
         } else {
           // operand is not a address so error
-          console.error(
-            formatErrorMessage(lineNumber, [
-              `the instruction ${instruction} should have no operands`,
-            ])
-          );
-          hasErrored = true;
+          logError(lineNumber, [`the instruction ${instruction} should have no operands`]);
           return malformedInstructionError;
         }
       } else if (operand.type[0] === InstructionTypes.N) {
         // the instruction just contains a number
         opcode = Opcodes.END;
       } else {
-        throw new Error(`the instructionType ${instructionType[1]} doesn't exist`);
+        logError(lineNumber, [
+          `unknown instruction type '${instructionType[1]}' at instruction ${instruction}`,
+        ]);
+        return malformedInstructionError;
       }
 
       return {
@@ -509,34 +506,32 @@ export function translator(
         operand: operand.type[1] || 0x00,
         lineNumber,
       };
-    }
+    },
   );
 
+  // second pass
   for (let i = 0; i < parsedLines.length; i++) {
     let { opcode, operand, lineNumber } = parsedLines[i];
 
+    // converts the labels into their value
     if (typeof operand === "string") {
       if (!labelMap.has(operand)) {
-        hasErrored = true;
-        console.error(
-          formatErrorMessage(lineNumber, [`the label ${operand} has not been defined`])
-        );
+        logError(lineNumber, [`the label ${operand} has not been defined`]);
 
-        operand = 0xff;
+        operand = 0x00;
       } else {
         operand = labelMap.get(operand)!;
       }
     }
 
+    // save the value in memory
     memory[i] = Processor.combineInstruction(opcode, operand);
   }
 
-  // // log the address of any labels
-  // if (labelMap.size > 0)
-  //   console.log(
-  //     "labels:\n",
-  //     ...[...labelMap.entries()].map(([key, address]) => `${key} => ${address}\n`)
-  //   );
+  // output the labels to the assigned
+  if (this && this.getLabels) {
+    this.getLabels(labelMap);
+  }
 
   return hasErrored ? new Uint16Array(0) : memory;
 }
