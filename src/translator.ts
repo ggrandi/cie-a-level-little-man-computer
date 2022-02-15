@@ -5,6 +5,7 @@ import { CharsToStr, Last, MapKey, StrToChars } from "./type-utils.ts";
 import { match, spaceString } from "./utils.ts";
 
 import { red } from "https://deno.land/std@0.125.0/fmt/colors.ts";
+import { Err, Ok, Result } from "./result.ts";
 
 const enum InstructionTypes {
   N,
@@ -84,177 +85,170 @@ const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTy
 const commentDelimiter = "//";
 const commentRegex = new RegExp(`\\s*${commentDelimiter}.*$`);
 
-// types for the validation functions
-type IsValid<T> = [isValid: false, reason: string] | [isValid: true, data: T];
-type Valid<V extends IsValid<unknown>> = V extends [true, unknown] ? V : never;
-type Invalid<V extends IsValid<unknown> = IsValid<unknown>> = V extends [false, unknown] ? V
-  : never;
-
 /** whether a given integer is within the safe range of the Processor */
 const isAllowedInt = (int: number) => Processor.MIN_INT <= int && Processor.MAX_INT >= int;
 
 /** gets an assembly number from a string or gives a reason as to why it is invalid */
-const getN = (n: string): IsValid<number> => {
+const getN = (n: string): Result<number, string> => {
   // checks if it has the correct prefix
   const hasPrefix = n[0] === "#";
 
   if (!hasPrefix) {
-    return [false, "have to prefix number with a #"];
+    return Err("have to prefix number with a #");
   }
 
   const hasNonDenaryBase = isNaN(Number(n[1]));
 
   if (hasNonDenaryBase && !"B&".includes(n[1])) {
-    return [
-      false,
+    return Err(
       `the only other bases allowed are B (binary) or & (hexadecimal). '${
         n[1]
       }' was not recognized.`,
-    ];
+    );
   }
 
+  // gets the number part
+  const numberPart = n.slice(hasNonDenaryBase ? 2 : 1);
+
   // converts it into an integer
-  const int = parseInt(
-    n.slice(hasNonDenaryBase ? 2 : 1),
-    hasNonDenaryBase ? (n[1] === "B" ? 2 : 16) : 10,
-  );
+  const int = parseInt(numberPart, hasNonDenaryBase ? (n[1] === "B" ? 2 : 16) : 10);
 
   // checks if the integer is actually a number
   if (isNaN(int)) {
-    return [false, `the number part '${n.slice(1)}' is not a valid number`];
+    return Err(`the number part '${numberPart}' is not a valid number`);
   }
 
   // checks if the integer is in the allowed range
   return isAllowedInt(int)
-    ? [true, int]
-    : [false, "The number is not in the allowed range for the processor"];
+    ? Ok(int)
+    : Err(`The number '${int}' is not in the allowed range for the processor`);
 };
 
 /** gets an address from a string */
-const getAddress = (address: string): IsValid<number> => {
+const getAddress = (address: string): Result<number, string> => {
   // gets the address from the integer
   const int = parseInt(address, 10);
 
   // checks if it is an actual integer
   if (isNaN(int)) {
-    return [false, `the address '${address}' has to be a base 10 number`];
+    return Err(`the address '${address}' has to be a base 10 number`);
   }
 
   // checks if it is an allowed integer
   return isAllowedInt(int)
-    ? [true, int]
-    : [false, `the address '${address}' is not in the allowed range of the processor`];
+    ? Ok(int)
+    : Err(`the address '${address}' is not in the allowed range of the processor`);
 };
 
 /** gets the register from a specified string */
-const getRegister = (register: string): IsValid<number> => {
+const getRegister = (register: string): Result<number, string> => {
   // cannot be a number in a string
   if (!isNaN(Number(register))) {
-    return [false, `the register '${register}' is not an allowed register`];
+    return Err(`the register '${register}' is not an allowed register`);
   }
 
   // checks if the register is a key of the Registers enum
   return isStringKeyOf(register, Registers)
-    ? [true, Registers[register]]
-    : [false, `the register '${register}' is not an allowed register`];
+    ? Ok(Registers[register])
+    : Err(`the register '${register}' is not an allowed register`);
 };
 
 const labelFirstChars = /[a-zA-Z_$]/;
 const labelChars = /[a-zA-Z_$0-9]/;
 
-const getLabel = (label: string): IsValid<string> => {
+const getLabel = (label: string): Result<string, string> => {
   // checks that the label is not a register
   if (isStringKeyOf(label, Registers)) {
-    return [false, `the label cannot be named ${label} because it is the same as a register`];
+    return Err(`the label cannot be named ${label} because it is the same as a register`);
   }
 
   // checks that the label is not an opcode
   if (isStringKeyOf(label, instructionTypesRecord)) {
-    return [false, `the label cannot be named ${label} because it is the same as an instruction`];
+    return Err(`the label cannot be named ${label} because it is the same as an instruction`);
   }
 
   // first chars have to follow the labelFirstChars regex
   if (!labelFirstChars.test(label[0])) {
-    return [false, `label cannot start with a char ${label[0]}`];
+    return Err(`label cannot start with a char ${label[0]}`);
   }
 
   // checks the rest of the characters to see if they are valid characters
   for (let i = 1; i < label.length; i++) {
     if (!labelChars.test(label[i])) {
-      return [false, `label cannot include char ${label[i]}`];
+      return Err(`label cannot include char ${label[i]}`);
     }
   }
 
-  return [true, label];
+  return Ok(label);
 };
 
 /** gets a label declaration from a specified string */
-const getLabelDeclaration = (label: string): IsValid<string> => {
+const getLabelDeclaration = (label: string): Result<string, string> => {
   // checks if the label part is valid
   const checkedLabel = getLabel(label.slice(0, -1));
 
-  if (!checkedLabel[0]) {
+  if (!checkedLabel.ok) {
     return checkedLabel;
   }
 
   // checks that label is declared properly
   if (label.at(-1) !== ":") {
-    return [false, "have to declare a label with a : at the end"];
+    return Err("have to declare a label with a : at the end");
   }
 
-  return [true, checkedLabel[1]];
+  return checkedLabel;
 };
 
 /** gets an opcode type from a specified string */
-const getInstructionType = (opcode: string): IsValid<InstructionTypes> => {
+const getInstructionType = (opcode: string): Result<InstructionTypes, string> => {
   if (!isKeyOf(opcode, instructionTypesRecord)) {
-    return [false, `'${opcode}' is not a valid opcode`];
+    return Err(`'${opcode}' is not a valid opcode`);
   }
 
-  return [true, instructionTypesRecord[opcode]];
+  return Ok(instructionTypesRecord[opcode]);
 };
 
 const getOperand = (operand?: string) => {
   let type:
     | undefined
-    | [InstructionTypes.N, Valid<typeof n>[1]]
-    | [InstructionTypes.Address, Valid<typeof address>[1]]
-    | [InstructionTypes.Register, Valid<typeof register>[1]]
-    | [InstructionTypes.AddressOrN, Valid<typeof label>[1]];
+    | [InstructionTypes.N, Ok<typeof n>["data"]]
+    | [InstructionTypes.Address, Ok<typeof address>["data"]]
+    | [InstructionTypes.Register, Ok<typeof register>["data"]]
+    | [InstructionTypes.AddressOrN, Ok<typeof label>["data"]];
 
-  if (!operand) {
-    const invalidMessage = [false, "have to pass an operand"] as Invalid;
+  if (operand === undefined) {
+    const invalidMessage = Err("have to pass an operand");
     return {
-      n: invalidMessage.slice() as Invalid,
-      address: invalidMessage.slice() as Invalid,
-      register: invalidMessage.slice() as Invalid,
-      label: invalidMessage.slice() as Invalid,
+      n: invalidMessage as Err<typeof n>,
+      address: invalidMessage as Err<typeof address>,
+      register: invalidMessage as Err<typeof register>,
+      label: invalidMessage as Err<typeof label>,
       type: [InstructionTypes.None, undefined] as [InstructionTypes.None, undefined],
     };
   }
 
   // checks if it is a number
   const n = getN(operand);
-  if (n[0]) type = [InstructionTypes.N, n[1]];
+  if (n.ok) type = [InstructionTypes.N, n.data];
 
   // checks if it is a number
   const address = getAddress(operand);
-  if (address[0]) type = [InstructionTypes.Address, address[1]];
+  if (address.ok) type = [InstructionTypes.Address, address.data];
 
   // checks if it is a register
   const register = getRegister(operand);
-  if (register[0]) type = [InstructionTypes.Register, register[1]];
+  if (register.ok) type = [InstructionTypes.Register, register.data];
 
   // checks if it is a label
   const label = getLabel(operand);
-  if (label[0]) type = [InstructionTypes.AddressOrN, label[1]];
+  if (label.ok) type = [InstructionTypes.AddressOrN, label.data];
 
   if (type === undefined) {
     return {
-      n: n as Invalid,
-      address: address as Invalid,
-      register: register as Invalid,
-      label: label as Invalid,
+      n: n as Err<typeof n>,
+      address: address as Err<typeof address>,
+      register: register as Err<typeof register>,
+      label: label as Err<typeof label>,
       type: undefined,
     };
   }
@@ -378,13 +372,13 @@ export function translator(
 
       const labelDeclaration = getLabelDeclaration(operators[0]);
 
-      if (labelDeclaration[0]) {
-        if (!labelMap.has(labelDeclaration[1])) {
+      if (labelDeclaration.ok) {
+        if (!labelMap.has(labelDeclaration.data)) {
           // store the label in the label map if it doesn't already exist
-          labelMap.set(labelDeclaration[1], address);
+          labelMap.set(labelDeclaration.data, address);
         } else {
           // cannot overwrite label so error
-          logError(lineNumber, [`the label ${labelDeclaration[1]} has already been used`]);
+          logError(lineNumber, [`the label ${labelDeclaration.data} has already been used`]);
         }
 
         // remove the label from the operators
@@ -402,17 +396,17 @@ export function translator(
       const instruction = operators[0] as keyof typeof instructionTypesRecord;
 
       // if it is an opcode, it removes it from the operators
-      if (instructionType[0]) {
+      if (instructionType.ok) {
         operators.shift();
       }
 
       const operand = getOperand(operators[0]);
 
       // check that the second parameter is correct
-      if (!instructionType[0] && operand.type?.[0] !== InstructionTypes.N) {
-        if (operators.length === 3) {
+      if (!instructionType.ok && operand.type?.[0] !== InstructionTypes.N) {
+        if (operators.length === 3 && !labelDeclaration.ok) {
           // there is an issue with the label
-          logError(lineNumber, [labelDeclaration[1]]);
+          logError(lineNumber, [labelDeclaration.error]);
         } else if (operators.length === 2) {
           // possible combinations (where INS is an instruction):
           // label: INS
@@ -422,26 +416,27 @@ export function translator(
           const secondInstruction = getInstructionType(operators[1]);
           const secondOperand = getOperand(operators[1]);
 
-          if (secondInstruction[0]) {
+          if (secondInstruction.ok && !labelDeclaration.ok) {
             // if the second value is an instruction, then there is an issue with the label
-            logError(lineNumber, [labelDeclaration[1]]);
+            logError(lineNumber, [labelDeclaration.error]);
           } else if (
-            secondOperand.type?.[0] === InstructionTypes.N ||
-            secondOperand.type?.[0] === InstructionTypes.AddressOrN
+            (secondOperand.type?.[0] === InstructionTypes.N ||
+              secondOperand.type?.[0] === InstructionTypes.AddressOrN) &&
+            !labelDeclaration.ok
           ) {
             // if the second value is a number, it could be either an address or a label issue
             logError(lineNumber, [
-              `either label error: ${labelDeclaration[1]}`,
-              `or instruction error: ${instructionType[1]}`,
+              `either label error: ${labelDeclaration.error}`,
+              `or instruction error: ${instructionType.error}`,
             ]);
           } else {
             logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
           }
-        } else if (operators.length === 1) {
+        } else if (operators.length === 1 && !operand.n.ok) {
           // it has to be either an opcode or a number and since both aren't true, display both error messages
           logError(lineNumber, [
-            `either instruction error: ${instructionType[1]}`,
-            `or number error: ${operand.n[1]}`,
+            `either instruction error: ${instructionType.error}`,
+            `or number error: ${operand.n.error}`,
           ]);
         } else {
           logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
@@ -460,67 +455,74 @@ export function translator(
       let opcode: Opcodes;
 
       // check that the operand matches up with the opcode
-      if (instructionType[1] === InstructionTypes.AddressOrN) {
-        const addressInstruction = instruction + "A";
-        const numberInstruction = instruction + "N";
+      if (instructionType.ok) {
+        if (instructionType.data === InstructionTypes.AddressOrN) {
+          const addressInstruction = instruction + "A";
+          const numberInstruction = instruction + "N";
 
-        if (isAddressInstruction(operand.type[0]) && isStringKeyOf(addressInstruction, Opcodes)) {
-          // checks that the operand is an address
-          opcode = Opcodes[addressInstruction];
-        } else if (isNInstruction(operand.type[0]) && isStringKeyOf(numberInstruction, Opcodes)) {
+          if (isAddressInstruction(operand.type[0]) && isStringKeyOf(addressInstruction, Opcodes)) {
+            // checks that the operand is an address
+            opcode = Opcodes[addressInstruction];
+          } else if (isNInstruction(operand.type[0]) && isStringKeyOf(numberInstruction, Opcodes)) {
+            // checks that the operand is a number
+            opcode = Opcodes[numberInstruction];
+          } else {
+            // operand is neither a number or address
+            logError(lineNumber, [
+              `the operand for ${instruction} should either be a number or address`,
+            ]);
+            return malformedInstructionError;
+          }
+        } else if (instructionType.data === InstructionTypes.N) {
           // checks that the operand is a number
-          opcode = Opcodes[numberInstruction];
-        } else {
-          // operand is neither a number or address
-          logError(lineNumber, [
-            `the operand for ${instruction} should either be a number or address`,
-          ]);
-          return malformedInstructionError;
-        }
-      } else if (instructionType[1] === InstructionTypes.N) {
-        // checks that the operand is a number
-        if (isNInstruction(operand.type[0]) && isStringKeyOf(instruction, Opcodes)) {
-          opcode = Opcodes[instruction];
-        } else {
-          // operand is not a number so error
-          logError(lineNumber, [`the operand for ${instruction} should be a number`]);
+          if (isNInstruction(operand.type[0]) && isStringKeyOf(instruction, Opcodes)) {
+            opcode = Opcodes[instruction];
+          } else {
+            // operand is not a number so error
+            logError(lineNumber, [`the operand for ${instruction} should be a number`]);
 
-          return malformedInstructionError;
-        }
-      } else if (instructionType[1] === InstructionTypes.Address) {
-        // checks that the operand is an address
-        if (isAddressInstruction(operand.type[0]) && isStringKeyOf(instruction, Opcodes)) {
-          opcode = Opcodes[instruction];
+            return malformedInstructionError;
+          }
+        } else if (instructionType.data === InstructionTypes.Address) {
+          // checks that the operand is an address
+          if (isAddressInstruction(operand.type[0]) && isStringKeyOf(instruction, Opcodes)) {
+            opcode = Opcodes[instruction];
+          } else {
+            // operand is not a address so error
+            logError(lineNumber, [`the operand for ${instruction} should be an address`]);
+            return malformedInstructionError;
+          }
+        } else if (instructionType.data === InstructionTypes.Register) {
+          // checks that the operand is a register
+          if (
+            operand.type[0] === InstructionTypes.Register && isStringKeyOf(instruction, Opcodes)
+          ) {
+            opcode = Opcodes[instruction];
+          } else {
+            // operand is not a address so error
+            logError(lineNumber, [`the operand for ${instruction} should be a register`]);
+            return malformedInstructionError;
+          }
+        } else if (instructionType.data === InstructionTypes.None) {
+          // checks that the operand is none
+          if (operand.type[0] === InstructionTypes.None && isStringKeyOf(instruction, Opcodes)) {
+            opcode = Opcodes[instruction];
+          } else {
+            // operand is not a address so error
+            logError(lineNumber, [`the instruction ${instruction} should have no operands`]);
+            return malformedInstructionError;
+          }
         } else {
-          // operand is not a address so error
-          logError(lineNumber, [`the operand for ${instruction} should be an address`]);
-          return malformedInstructionError;
-        }
-      } else if (instructionType[1] === InstructionTypes.Register) {
-        // checks that the operand is a register
-        if (operand.type[0] === InstructionTypes.Register && isStringKeyOf(instruction, Opcodes)) {
-          opcode = Opcodes[instruction];
-        } else {
-          // operand is not a address so error
-          logError(lineNumber, [`the operand for ${instruction} should be a register`]);
-          return malformedInstructionError;
-        }
-      } else if (instructionType[1] === InstructionTypes.None) {
-        // checks that the operand is none
-        if (operand.type[0] === InstructionTypes.None && isStringKeyOf(instruction, Opcodes)) {
-          opcode = Opcodes[instruction];
-        } else {
-          // operand is not a address so error
-          logError(lineNumber, [`the instruction ${instruction} should have no operands`]);
+          logError(lineNumber, [
+            `unknown instruction type '${instructionType.data}' at instruction ${instruction}`,
+          ]);
           return malformedInstructionError;
         }
       } else if (operand.type[0] === InstructionTypes.N) {
         // the instruction just contains a number
         opcode = Opcodes.END;
       } else {
-        logError(lineNumber, [
-          `unknown instruction type '${instructionType[1]}' at instruction ${instruction}`,
-        ]);
+        logError(lineNumber, [`unknown error near '${instruction}'`]);
         return malformedInstructionError;
       }
 

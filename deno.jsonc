@@ -23,8 +23,7 @@
   },
   "lint": {
     "files": {
-      "include": ["src/"],
-      "exclude": ["src/testdata/"]
+      "include": ["src/", "deno.jsonc"]
     },
     "rules": {
       "tags": ["recommended"],
