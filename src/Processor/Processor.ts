@@ -1,7 +1,7 @@
-import { Opcodes } from "./Opcodes.ts";
-import { translator } from "./translator.ts";
-import { isKeyOf } from "./type-guards.ts";
-import { toBaseNString } from "./utils.ts";
+import { Opcodes } from "./Opcodes";
+import { translator } from "./translator";
+import { isKeyOf } from "./type-guards";
+import { toBaseNString } from "../utils";
 
 export enum Registers {
   ACC = 0x00,
@@ -20,23 +20,35 @@ export enum ErrorCodes {
 type InstructionReturns =
   | void
   | {
-    /** the program should end */
-    end: true;
-    jump?: undefined;
-  }
+      /** the program should end */
+      end: true;
+      jump?: undefined;
+    }
   | {
-    end?: undefined;
-    /** line number to jump to */
-    jump: number;
-  };
+      end?: undefined;
+      /** line number to jump to */
+      jump: number;
+    };
 
-type ProcessorBase =
-  & {
-    [K in Exclude<keyof typeof Registers, number>]: number;
-  }
-  & {
-    [Opcode in Opcodes]: (this: Processor, operand: number) => InstructionReturns;
-  };
+type ProcessorBase = {
+  [K in Exclude<keyof typeof Registers, number>]: number;
+} & {
+  [Opcode in Opcodes]: (this: Processor, operand: number) => InstructionReturns;
+};
+
+export interface ProcessorConstructorOpts {
+  output?(char: string): void;
+  dumpLogger?(arg: {
+    IX: number;
+    PC: number;
+    MAR: number;
+    MDR: number;
+    CIR: number;
+    SR: string;
+    ACC: number;
+    memory: string[];
+  }): void;
+}
 
 export class Processor implements ProcessorBase {
   #ACC = 0;
@@ -59,9 +71,19 @@ export class Processor implements ProcessorBase {
   /** min int for this vm */
   static readonly MIN_INT = 0;
 
+  private output: Required<ProcessorConstructorOpts>["output"];
+  private dumpLogger: Required<ProcessorConstructorOpts>["dumpLogger"];
+
   /** representation of the memory */
-  #memory = new Uint16Array(0xff);
-  constructor() {}
+  #memory = new Uint16Array(Processor.MAX_INT + 1);
+  constructor(opts?: ProcessorConstructorOpts) {
+    setTimeout(() => {
+      this.output = opts?.output || console.log;
+      this.dumpLogger = opts?.dumpLogger || console.info;
+    });
+    this.output = opts?.output || console.log;
+    this.dumpLogger = opts?.dumpLogger || console.info;
+  }
 
   /** accumulator */
   get ACC(): number {
@@ -69,7 +91,6 @@ export class Processor implements ProcessorBase {
   }
 
   // private setter for the accumulator that automatically ensures that the value is an allowed integer
-  // deno-lint-ignore explicit-module-boundary-types
   private set ACC(value: number) {
     if (value > Processor.MAX_INT) {
       this.#setFlag(3, 0);
@@ -139,7 +160,7 @@ export class Processor implements ProcessorBase {
 
   /** gets the value in memory at a given index */
   getMemoryAt(index: number): number | undefined {
-    return this.#memory.at(index);
+    return this.#memory[index];
   }
 
   /** returns a slice of memory as 4 digit hexadecimal */
@@ -156,6 +177,20 @@ export class Processor implements ProcessorBase {
     for (let i = 0; i < this.#memory.length; i++) {
       this.#memory[i] = 0x0000;
     }
+  }
+
+  /** dump the current memory */
+  dumpMemory(): void {
+    this.dumpLogger({
+      IX: this.IX,
+      PC: this.PC,
+      MAR: this.MAR,
+      MDR: this.MDR,
+      CIR: this.CIR,
+      SR: this.SR,
+      ACC: this.ACC,
+      memory: this.getMemorySlice(),
+    });
   }
 
   /** takes an int and performs underflow/overflow until it is within the necessary range */
@@ -224,13 +259,8 @@ export class Processor implements ProcessorBase {
   //#region Opcode implementations
   [Opcodes.BRK](_?: number): InstructionReturns {
     // adds a breakpoint and prints dumps the current memory
-    console.log({
-      ...this,
-      SR: this.SR,
-      ACC: this.ACC,
-      memory: this.#memory.slice(),
-    });
-    // deno-lint-ignore no-debugger
+    this.dumpMemory();
+
     debugger;
   }
 
@@ -347,10 +377,10 @@ export class Processor implements ProcessorBase {
 
   [Opcodes.OUT](_?: number): InstructionReturns {
     // gets the char from the ascii code in the ACC
-    // const char = String.fromCharCode(this.ACC);
+    const char = String.fromCharCode(this.ACC);
 
     // outputs the char
-    Deno.stdout.writeSync(new Uint8Array([this.ACC]));
+    this.output(char);
   }
 
   [Opcodes.CMPN](n: number): InstructionReturns {
@@ -455,19 +485,13 @@ export class Processor implements ProcessorBase {
    * @param operand the operand of the command
    * @returns whether the program should stop
    */
-  runInstruction<Code extends Opcodes>(
-    opcode: Code,
-    operand: Parameters<Processor[Code]>[0],
-  ): InstructionReturns {
+  runInstruction<Code extends Opcodes>(opcode: Code, operand: Parameters<Processor[Code]>[0]): InstructionReturns {
     return this[opcode](operand as number);
   }
 
   /** loads the assembly code `code` into memory  */
-  loadCode(code: string): Uint16Array;
-  /** loads the template literal code into memory  */
-  loadCode(code: TemplateStringsArray, ...separations: unknown[]): Uint16Array;
-  loadCode(...args: [string] | [TemplateStringsArray, ...unknown[]]): Uint16Array {
-    const memory = translator(...(args as Parameters<typeof translator>));
+  loadCode(code: string): Uint16Array {
+    const memory = translator(code);
 
     this.loadMemory(memory);
 
@@ -485,7 +509,6 @@ export class Processor implements ProcessorBase {
    * Runs a program in memory starting from the `PC`
    * @param PC the initial program counter (default: 0)
    */
-  // deno-lint-ignore explicit-module-boundary-types
   runCode(PC = 0): void {
     this.PC = PC;
     let res: InstructionReturns;

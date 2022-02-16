@@ -1,11 +1,9 @@
-import { Opcodes } from "./Opcodes.ts";
-import { ErrorCodes, Processor, Registers } from "./Processor.ts";
-import { isKeyOf, isStringKeyOf } from "./type-guards.ts";
-import { CharsToStr, Last, MapKey, StrToChars } from "./type-utils.ts";
-import { match, spaceString } from "./utils.ts";
-
-import { red } from "https://deno.land/std@0.125.0/fmt/colors.ts";
-import { Err, Ok, Result } from "./result.ts";
+import { Opcodes } from "./Opcodes";
+import { ErrorCodes, Processor, Registers } from "./Processor";
+import { isKeyOf, isStringKeyOf } from "./type-guards";
+import { CharsToStr, Last, MapKey, StrToChars } from "../type-utils";
+import { match, spaceString } from "../utils";
+import { Err, Ok, Result } from "./result";
 
 const enum InstructionTypes {
   N,
@@ -17,13 +15,13 @@ const enum InstructionTypes {
 
 /** returns whether the instruction can take an address parameter */
 const isAddressInstruction = (
-  instructionType: InstructionTypes,
+  instructionType: InstructionTypes
 ): instructionType is InstructionTypes.Address | InstructionTypes.AddressOrN =>
   instructionType === InstructionTypes.Address || instructionType === InstructionTypes.AddressOrN;
 
 /** returns whether the instruction can take an n parameter */
 const isNInstruction = (
-  instructionType: InstructionTypes,
+  instructionType: InstructionTypes
 ): instructionType is InstructionTypes.N | InstructionTypes.AddressOrN =>
   instructionType === InstructionTypes.N || instructionType === InstructionTypes.AddressOrN;
 
@@ -39,47 +37,49 @@ const isNInstruction = (
 type Instructions = {
   [K in Exclude<keyof typeof Opcodes, number>]: Last<StrToChars<K>> extends [infer Last, infer Rest]
     ? Rest extends string[] // if the last character is A and there is an N variant, remove the A
-    ? Last extends "A" ? `${CharsToStr<Rest>}N` extends keyof typeof Opcodes ? CharsToStr<Rest>
-    : K
-    : // if the last character is N and there is an A variant, remove the N
-    Last extends "N" ? `${CharsToStr<Rest>}A` extends keyof typeof Opcodes ? CharsToStr<Rest>
-    : K
-    : K
-    : K
+      ? Last extends "A"
+        ? `${CharsToStr<Rest>}N` extends keyof typeof Opcodes
+          ? CharsToStr<Rest>
+          : K
+        : // if the last character is N and there is an A variant, remove the N
+        Last extends "N"
+        ? `${CharsToStr<Rest>}A` extends keyof typeof Opcodes
+          ? CharsToStr<Rest>
+          : K
+        : K
+      : K
     : K;
 }[keyof typeof Opcodes];
 
 // Record with the instructions and the type of their operands
-const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTypes>>>()(
-  {
-    ADD: InstructionTypes.AddressOrN,
-    BRK: InstructionTypes.None,
-    CMI: InstructionTypes.Address,
-    CMP: InstructionTypes.AddressOrN,
-    DEC: InstructionTypes.Register,
-    END: InstructionTypes.None,
-    ERR: InstructionTypes.N,
-    IN: InstructionTypes.None,
-    INC: InstructionTypes.Register,
-    JMP: InstructionTypes.Address,
-    JPE: InstructionTypes.Address,
-    JPN: InstructionTypes.Address,
-    LDD: InstructionTypes.Address,
-    LDI: InstructionTypes.Address,
-    LDM: InstructionTypes.N,
-    LDR: InstructionTypes.N,
-    LDX: InstructionTypes.Address,
-    MOV: InstructionTypes.Register,
-    OUT: InstructionTypes.None,
-    STO: InstructionTypes.Address,
-    SUB: InstructionTypes.AddressOrN,
-    LSL: InstructionTypes.N,
-    LSR: InstructionTypes.N,
-    AND: InstructionTypes.AddressOrN,
-    OR: InstructionTypes.AddressOrN,
-    XOR: InstructionTypes.AddressOrN,
-  } as const,
-);
+const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTypes>>>()({
+  ADD: InstructionTypes.AddressOrN,
+  BRK: InstructionTypes.None,
+  CMI: InstructionTypes.Address,
+  CMP: InstructionTypes.AddressOrN,
+  DEC: InstructionTypes.Register,
+  END: InstructionTypes.None,
+  ERR: InstructionTypes.N,
+  IN: InstructionTypes.None,
+  INC: InstructionTypes.Register,
+  JMP: InstructionTypes.Address,
+  JPE: InstructionTypes.Address,
+  JPN: InstructionTypes.Address,
+  LDD: InstructionTypes.Address,
+  LDI: InstructionTypes.Address,
+  LDM: InstructionTypes.N,
+  LDR: InstructionTypes.N,
+  LDX: InstructionTypes.Address,
+  MOV: InstructionTypes.Register,
+  OUT: InstructionTypes.None,
+  STO: InstructionTypes.Address,
+  SUB: InstructionTypes.AddressOrN,
+  LSL: InstructionTypes.N,
+  LSR: InstructionTypes.N,
+  AND: InstructionTypes.AddressOrN,
+  OR: InstructionTypes.AddressOrN,
+  XOR: InstructionTypes.AddressOrN,
+} as const);
 
 // create the comment delimiter and regex to remove comments
 const commentDelimiter = "//";
@@ -100,11 +100,7 @@ const getN = (n: string): Result<number, string> => {
   const hasNonDenaryBase = isNaN(Number(n[1]));
 
   if (hasNonDenaryBase && !"B&".includes(n[1])) {
-    return Err(
-      `the only other bases allowed are B (binary) or & (hexadecimal). '${
-        n[1]
-      }' was not recognized.`,
-    );
+    return Err(`the only other bases allowed are B (binary) or & (hexadecimal). '${n[1]}' was not recognized.`);
   }
 
   // gets the number part
@@ -119,9 +115,7 @@ const getN = (n: string): Result<number, string> => {
   }
 
   // checks if the integer is in the allowed range
-  return isAllowedInt(int)
-    ? Ok(int)
-    : Err(`The number '${int}' is not in the allowed range for the processor`);
+  return isAllowedInt(int) ? Ok(int) : Err(`The number '${int}' is not in the allowed range for the processor`);
 };
 
 /** gets an address from a string */
@@ -135,9 +129,7 @@ const getAddress = (address: string): Result<number, string> => {
   }
 
   // checks if it is an allowed integer
-  return isAllowedInt(int)
-    ? Ok(int)
-    : Err(`the address '${address}' is not in the allowed range of the processor`);
+  return isAllowedInt(int) ? Ok(int) : Err(`the address '${address}' is not in the allowed range of the processor`);
 };
 
 /** gets the register from a specified string */
@@ -192,7 +184,7 @@ const getLabelDeclaration = (label: string): Result<string, string> => {
   }
 
   // checks that label is declared properly
-  if (label.at(-1) !== ":") {
+  if (label[label.length - 1] !== ":") {
     return Err("have to declare a label with a : at the end");
   }
 
@@ -262,7 +254,7 @@ type TranslatorLogger = (lineNumber: number, errors: string[]) => void;
 const defaultLogger: TranslatorLogger = (lineNumber: number, errors: string[]) => {
   const lineNumberWarning = `line ${lineNumber}: `;
 
-  console.error(red(lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`)));
+  console.error(lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`));
 };
 
 /** the type to make translator output more values */
@@ -277,23 +269,7 @@ export type TranslatorThis = {
  * use `translator.bind` or `translator.apply` to make it output values elsewhere
  * @returns the memory to load
  */
-export function translator(this: TranslatorThis | void, code: string): Uint16Array;
-/**
- * loads the template literal code into memory
- *
- * use `translator.bind` or `translator.apply` to make it output values elsewhere
- * @returns the memory to load
- */
-export function translator(
-  this: TranslatorThis | void,
-  code: TemplateStringsArray,
-  ...separations: unknown[]
-): Uint16Array;
-export function translator(
-  this: TranslatorThis | void,
-  first: TemplateStringsArray | string,
-  ...separations: unknown[]
-): Uint16Array {
+export function translator(this: TranslatorThis | void, assemblyCode: string): Uint16Array {
   let hasErrored = false;
 
   const logger: TranslatorLogger = this?.logger ?? defaultLogger;
@@ -302,22 +278,6 @@ export function translator(
     hasErrored = true;
     logger(...args);
   };
-
-  const assemblyCode = (() => {
-    // if first is a string set the assemblyCode to first directly
-    if (typeof first === "string") {
-      return first;
-    } else {
-      // if it is a template literal, join the template literal and set it as assemblyCode
-      return (
-        first[0] +
-        first
-          .slice(1)
-          .map((str, i) => separations[i] + str)
-          .join("")
-      );
-    }
-  })();
 
   // split the code by lines and only take lines that have code
   const lines = assemblyCode
@@ -331,9 +291,7 @@ export function translator(
 
   // checks that the processor can load the code into memory
   if (lines.length > Processor.MAX_INT) {
-    logError(0, [
-      `the program given is too long. The max amount of instructions is ${Processor.MAX_INT}.`,
-    ]);
+    logError(0, [`the program given is too long. The max amount of instructions is ${Processor.MAX_INT}.`]);
 
     return new Uint16Array(0);
   }
@@ -348,7 +306,7 @@ export function translator(
   const parsedLines = lines.map(
     (
       { line, lineNumber },
-      address,
+      address
     ): Readonly<{
       opcode: number;
       operand: number | MapKey<typeof labelMap>;
@@ -468,9 +426,7 @@ export function translator(
             opcode = Opcodes[numberInstruction];
           } else {
             // operand is neither a number or address
-            logError(lineNumber, [
-              `the operand for ${instruction} should either be a number or address`,
-            ]);
+            logError(lineNumber, [`the operand for ${instruction} should either be a number or address`]);
             return malformedInstructionError;
           }
         } else if (instructionType.data === InstructionTypes.N) {
@@ -494,9 +450,7 @@ export function translator(
           }
         } else if (instructionType.data === InstructionTypes.Register) {
           // checks that the operand is a register
-          if (
-            operand.type[0] === InstructionTypes.Register && isStringKeyOf(instruction, Opcodes)
-          ) {
+          if (operand.type[0] === InstructionTypes.Register && isStringKeyOf(instruction, Opcodes)) {
             opcode = Opcodes[instruction];
           } else {
             // operand is not a address so error
@@ -513,9 +467,7 @@ export function translator(
             return malformedInstructionError;
           }
         } else {
-          logError(lineNumber, [
-            `unknown instruction type '${instructionType.data}' at instruction ${instruction}`,
-          ]);
+          logError(lineNumber, [`unknown instruction type '${instructionType.data}' at instruction ${instruction}`]);
           return malformedInstructionError;
         }
       } else if (operand.type[0] === InstructionTypes.N) {
@@ -531,7 +483,7 @@ export function translator(
         operand: operand.type[1] || 0x00,
         lineNumber,
       };
-    },
+    }
   );
 
   // second pass

@@ -1,0 +1,29 @@
+{
+  "name": "cie-little-man-computer",
+  "version": "0.0.0",
+  "repository": "https://github.com/ggrandi/cie-a-level-little-man-computer.git",
+  "author": "pythonKiwi123 <49359646+pythonKiwi123@users.noreply.github.com>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "parcel serve src/index.html",
+    "build": "parcel build src/index.html"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.39",
+    "@types/react-dom": "^17.0.11",
+    "parcel": "^2.3.1",
+    "tslib": "^2.3.1",
+    "typescript": "^4.5.5"
+  },
+  "dependencies": {
+    "goober": "^2.1.8",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "targets": {
+    "default": {
+      "distDir": "docs",
+      "publicUrl": "/cie-a-level-little-man-computer"
+    }
+  }
+}

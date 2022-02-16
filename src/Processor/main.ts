@@ -1,7 +1,7 @@
 #!/usr/local/bin/deno run
-import { Processor } from "./Processor.ts";
-import { translator, TranslatorThis } from "./translator.ts";
-import { cast } from "./utils.ts";
+import { Processor } from "./Processor.js";
+import { translator, TranslatorThis } from "./translator.js";
+import { cast } from "../utils.js";
 
 const p = new Processor();
 
@@ -9,7 +9,7 @@ console.log("PROGRAM 1");
 console.log("".padStart(20, "-"));
 console.log(`infinite loop until you enter nothing`);
 
-p.loadCode`
+p.loadCode(`
   // Stores 'A' in address 20
   LDM #10
   ADD #55
@@ -36,7 +36,7 @@ p.loadCode`
   CMP #0
   JPN 12
   END
-`;
+`);
 
 p.runCode();
 
@@ -46,7 +46,7 @@ console.log("\nPROGRAM 2");
 console.log("".padStart(20, "-"));
 console.log(`adds three numbers in memory`);
 
-const memory = translator`
+const memory = translator(`
 // adds three numbers together and stores them
 start:  LDD first
         ADD second
@@ -60,7 +60,7 @@ first:  #&10
 second: #&30
 third:  #&20
 total:         // implied to start at 0
-`;
+`);
 
 p.loadMemory(memory);
 
@@ -74,12 +74,12 @@ console.log("\nPROGRAM 3");
 console.log("".padStart(20, "-"));
 console.log(`outputs a string stored in memory`);
 
-p.loadCode`
+p.loadCode(`
 // print out a string
 start:  LDX string
-        OUT
         CMP #0
         JPE end
+        OUT
         INC IX
         JMP start
 end:    END
@@ -96,7 +96,7 @@ string: #&48
         #&64
         #&21
         #&0A
-`;
+`);
 
 p.runCode();
 
@@ -107,7 +107,7 @@ console.log("".padStart(20, "-"));
 console.log(`counter controlled loop`);
 
 // program from page 127 of the AS textbook
-p.loadCode`
+p.loadCode(`
         LDM #0          // Load 0 into ACC
         STO total       // Store 0 in the total
         STO counter     // Store 0 in the counter
@@ -129,7 +129,7 @@ number: #5
 
 counter:
 total:
-`;
+`);
 
 p.runCode();
 
@@ -142,17 +142,18 @@ console.log("".padStart(20, "-"));
 console.log(`showing logging errors with a different logger`);
 
 // showing logging the errors with a different logger
-translator.bind(
+translator.call(
   cast<TranslatorThis>({
     logger: console.log,
   }),
-)`
+  `
 label: FOO bar baz
 label #2
 cow: ENS
      IN #1
      MOV 0
-`;
+`
+);
 
 console.log("\nPROGRAM 5");
 console.log("".padStart(20, "-"));
