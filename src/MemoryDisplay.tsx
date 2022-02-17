@@ -24,14 +24,14 @@ const MemoryCellDisplay = styled("pre")`
   margin: 0;
 `;
 
-export const MemoryCell = ({ address, memory }: MemoryCellProps) => (
+const MemoryCell = ({ address, memory }: MemoryCellProps): JSX.Element => (
   <MemoryCellDisplay>
     {address}:{"\n"}
     {memory}
   </MemoryCellDisplay>
 );
 
-export const MemoryDisplay = ({ memory }: MemoryDisplayProps) => {
+export const MemoryDisplay = ({ memory }: MemoryDisplayProps): JSX.Element => {
   return (
     <MemoryGrid>
       {

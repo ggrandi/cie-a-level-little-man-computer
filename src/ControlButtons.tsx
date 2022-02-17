@@ -1,11 +1,13 @@
 import * as React from "react";
+
 import { ProcessorReducerDispatch } from "./useProcessorReducer";
 
 interface ControlButtonsProps {
   dispatch: ProcessorReducerDispatch;
 }
 
-export const ControlButtons = ({ dispatch }: ControlButtonsProps) => {
+/** Buttons to give instructions to the processor */
+export const ControlButtons = ({ dispatch }: ControlButtonsProps): JSX.Element => {
   return (
     <>
       <button
@@ -13,8 +15,7 @@ export const ControlButtons = ({ dispatch }: ControlButtonsProps) => {
         onClick={(_ev) => {
           // make the reducer load the code into the processor
           dispatch({ type: "loadCode" });
-        }}
-        >
+        }}>
         load into ram
       </button>
       <button
@@ -22,8 +23,7 @@ export const ControlButtons = ({ dispatch }: ControlButtonsProps) => {
         onClick={(_ev) => {
           // run the code starting from PC 0
           dispatch({ type: "runCode", PC: 0 });
-        }}
-      >
+        }}>
         run code
       </button>
     </>

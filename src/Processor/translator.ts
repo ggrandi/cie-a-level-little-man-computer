@@ -1,8 +1,10 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { CharsToStr, Last, MapKey, StrToChars } from "../type-utils";
+import { match, spaceString } from "../utils";
+
 import { Opcodes } from "./Opcodes";
 import { ErrorCodes, Processor, Registers } from "./Processor";
 import { isKeyOf, isStringKeyOf } from "./type-guards";
-import { CharsToStr, Last, MapKey, StrToChars } from "../type-utils";
-import { match, spaceString } from "../utils";
 import { Err, Ok, Result } from "./result";
 
 const enum InstructionTypes {
@@ -86,7 +88,7 @@ const commentDelimiter = "//";
 const commentRegex = new RegExp(`\\s*${commentDelimiter}.*$`);
 
 /** whether a given integer is within the safe range of the Processor */
-const isAllowedInt = (int: number) => Processor.MIN_INT <= int && Processor.MAX_INT >= int;
+const isAllowedInt = (int: number): boolean => Processor.MIN_INT <= int && Processor.MAX_INT >= int;
 
 /** gets an assembly number from a string or gives a reason as to why it is invalid */
 const getN = (n: string): Result<number, string> => {
@@ -100,7 +102,9 @@ const getN = (n: string): Result<number, string> => {
   const hasNonDenaryBase = isNaN(Number(n[1]));
 
   if (hasNonDenaryBase && !"B&".includes(n[1])) {
-    return Err(`the only other bases allowed are B (binary) or & (hexadecimal). '${n[1]}' was not recognized.`);
+    return Err(
+      `the only other bases allowed are B (binary) or & (hexadecimal). '${n[1]}' was not recognized.`
+    );
   }
 
   // gets the number part
@@ -115,7 +119,9 @@ const getN = (n: string): Result<number, string> => {
   }
 
   // checks if the integer is in the allowed range
-  return isAllowedInt(int) ? Ok(int) : Err(`The number '${int}' is not in the allowed range for the processor`);
+  return isAllowedInt(int)
+    ? Ok(int)
+    : Err(`The number '${int}' is not in the allowed range for the processor`);
 };
 
 /** gets an address from a string */
@@ -129,7 +135,9 @@ const getAddress = (address: string): Result<number, string> => {
   }
 
   // checks if it is an allowed integer
-  return isAllowedInt(int) ? Ok(int) : Err(`the address '${address}' is not in the allowed range of the processor`);
+  return isAllowedInt(int)
+    ? Ok(int)
+    : Err(`the address '${address}' is not in the allowed range of the processor`);
 };
 
 /** gets the register from a specified string */
@@ -200,7 +208,34 @@ const getInstructionType = (opcode: string): Result<InstructionTypes, string> =>
   return Ok(instructionTypesRecord[opcode]);
 };
 
-const getOperand = (operand?: string) => {
+type GetOperandReturn =
+  | {
+      n: Err<ReturnType<typeof getN>>;
+      address: Err<ReturnType<typeof getAddress>>;
+      register: Err<ReturnType<typeof getRegister>>;
+      label: Err<ReturnType<typeof getLabel>>;
+      type: [InstructionTypes.None, undefined];
+    }
+  | {
+      n: Err<ReturnType<typeof getN>>;
+      address: Err<ReturnType<typeof getAddress>>;
+      register: Err<ReturnType<typeof getRegister>>;
+      label: Err<ReturnType<typeof getLabel>>;
+      type: undefined;
+    }
+  | {
+      n: ReturnType<typeof getN>;
+      address: ReturnType<typeof getAddress>;
+      register: ReturnType<typeof getRegister>;
+      label: ReturnType<typeof getLabel>;
+      type:
+        | [InstructionTypes.N, Ok<ReturnType<typeof getN>>["data"]]
+        | [InstructionTypes.Address, Ok<ReturnType<typeof getAddress>>["data"]]
+        | [InstructionTypes.Register, Ok<ReturnType<typeof getRegister>>["data"]]
+        | [InstructionTypes.AddressOrN, Ok<ReturnType<typeof getLabel>>["data"]];
+    };
+
+const getOperand = (operand?: string): GetOperandReturn => {
   let type:
     | undefined
     | [InstructionTypes.N, Ok<typeof n>["data"]]
@@ -291,7 +326,9 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
 
   // checks that the processor can load the code into memory
   if (lines.length > Processor.MAX_INT) {
-    logError(0, [`the program given is too long. The max amount of instructions is ${Processor.MAX_INT}.`]);
+    logError(0, [
+      `the program given is too long. The max amount of instructions is ${Processor.MAX_INT}.`,
+    ]);
 
     return new Uint16Array(0);
   }
@@ -426,7 +463,9 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
             opcode = Opcodes[numberInstruction];
           } else {
             // operand is neither a number or address
-            logError(lineNumber, [`the operand for ${instruction} should either be a number or address`]);
+            logError(lineNumber, [
+              `the operand for ${instruction} should either be a number or address`,
+            ]);
             return malformedInstructionError;
           }
         } else if (instructionType.data === InstructionTypes.N) {
@@ -450,7 +489,10 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
           }
         } else if (instructionType.data === InstructionTypes.Register) {
           // checks that the operand is a register
-          if (operand.type[0] === InstructionTypes.Register && isStringKeyOf(instruction, Opcodes)) {
+          if (
+            operand.type[0] === InstructionTypes.Register &&
+            isStringKeyOf(instruction, Opcodes)
+          ) {
             opcode = Opcodes[instruction];
           } else {
             // operand is not a address so error
@@ -467,7 +509,9 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
             return malformedInstructionError;
           }
         } else {
-          logError(lineNumber, [`unknown instruction type '${instructionType.data}' at instruction ${instruction}`]);
+          logError(lineNumber, [
+            `unknown instruction type '${instructionType.data}' at instruction ${instruction}`,
+          ]);
           return malformedInstructionError;
         }
       } else if (operand.type[0] === InstructionTypes.N) {
@@ -488,7 +532,8 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
 
   // second pass
   for (let i = 0; i < parsedLines.length; i++) {
-    let { opcode, operand, lineNumber } = parsedLines[i];
+    const { opcode, lineNumber } = parsedLines[i];
+    let { operand } = parsedLines[i];
 
     // converts the labels into their value
     if (typeof operand === "string") {
@@ -497,7 +542,7 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
 
         operand = 0x00;
       } else {
-        operand = labelMap.get(operand)!;
+        operand = labelMap.get(operand) || 0x00;
       }
     }
 

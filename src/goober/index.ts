@@ -13,5 +13,5 @@ setup(
   shouldForwardProp((prop) => {
     // Do NOT forward props that start with `$` symbol
     return prop["0"] !== "$";
-  }),
+  })
 );

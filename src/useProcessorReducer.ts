@@ -1,4 +1,5 @@
 import { Reducer, useReducer } from "react";
+
 import { Processor } from "./Processor/Processor";
 import { translator } from "./Processor/translator";
 import { ToReducerActions } from "./type-utils";
@@ -15,7 +16,7 @@ const processor = new Processor({
 
 /** the different types of actions the reducer can have */
 export type ProcessorActions = ToReducerActions<{
-  loadCode: {};
+  loadCode: Record<string, never>;
   runCode: {
     PC?: number;
   };
@@ -45,16 +46,16 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
 
       // loads the code into the processor
       processor.loadMemory(translator.call({ getLabels: (l) => (labels = l) }, prevState.code));
-      
+
       // fetches the memory from the processor
       const memory = processor.getMemorySlice();
-      
+
       return { ...prevState, memory, charOutput, labels };
     }
     case "runCode": {
       // runs the code from the given PC
       processor.runCode(action.PC);
-      
+
       // fetches the memory from the processor
       const memory = processor.getMemorySlice();
 
@@ -101,6 +102,6 @@ string: #&48
 export type ProcessorReducerDispatch = React.Dispatch<ProcessorActions>;
 
 /** hook to use the processor reducer */
-export const useProcessorReducer = () => {
+export const useProcessorReducer = (): [ProcessorReducerState, ProcessorReducerDispatch] => {
   return useReducer(processorReducer, undefined, initializeProcessorReducerState);
 };

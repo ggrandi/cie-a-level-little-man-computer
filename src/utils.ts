@@ -10,7 +10,8 @@ export const match =
     val as any;
 
 /** turns a number into a base n string */
-export const toBaseNString = (n: number, base: number, length = 0): string => n.toString(base).padStart(length, "0");
+export const toBaseNString = (n: number, base: number, length = 0): string =>
+  n.toString(base).padStart(length, "0");
 
 /** makes a string of spaces of the given length */
 export const spaceString = (length: number): string => "".padStart(length, " ");

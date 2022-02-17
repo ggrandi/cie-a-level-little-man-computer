@@ -12,5 +12,5 @@ export const FlexChild = styled("div")<FlexChildProps>(
   height: 100%;
   display: flex;
   flex-direction: column;
-`,
+`
 );

@@ -1,7 +1,7 @@
 import * as React from "react";
+
 import { GlobalStyles } from "./goober/GlobalStyles";
 import { FlexChild, FlexColumn, FlexRow } from "./goober/styled";
-
 import "./goober";
 import { CodeEditor } from "./CodeEditor";
 import { ControlButtons } from "./ControlButtons";
@@ -9,7 +9,7 @@ import { MemoryDisplay } from "./MemoryDisplay";
 import { useProcessorReducer } from "./useProcessorReducer";
 
 /** the main component for the visualisation website */
-export const App = () => {
+export const App = (): JSX.Element => {
   const [state, dispatch] = useProcessorReducer();
 
   return (

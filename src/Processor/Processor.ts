@@ -1,7 +1,8 @@
+import { toBaseNString } from "../utils";
+
 import { Opcodes } from "./Opcodes";
 import { translator } from "./translator";
 import { isKeyOf } from "./type-guards";
-import { toBaseNString } from "../utils";
 
 export enum Registers {
   ACC = 0x00,
@@ -77,12 +78,8 @@ export class Processor implements ProcessorBase {
   /** representation of the memory */
   #memory = new Uint16Array(Processor.MAX_INT + 1);
   constructor(opts?: ProcessorConstructorOpts) {
-    setTimeout(() => {
-      this.output = opts?.output || console.log;
-      this.dumpLogger = opts?.dumpLogger || console.info;
-    });
-    this.output = opts?.output || console.log;
-    this.dumpLogger = opts?.dumpLogger || console.info;
+    this.output = opts?.output ?? console.log;
+    this.dumpLogger = opts?.dumpLogger ?? console.info;
   }
 
   /** accumulator */
@@ -485,7 +482,10 @@ export class Processor implements ProcessorBase {
    * @param operand the operand of the command
    * @returns whether the program should stop
    */
-  runInstruction<Code extends Opcodes>(opcode: Code, operand: Parameters<Processor[Code]>[0]): InstructionReturns {
+  runInstruction<Code extends Opcodes>(
+    opcode: Code,
+    operand: Parameters<Processor[Code]>[0]
+  ): InstructionReturns {
     return this[opcode](operand as number);
   }
 
@@ -532,9 +532,9 @@ export class Processor implements ProcessorBase {
 
       // debugger;
 
-      if (typeof res?.jump === "number") {
+      if (res && typeof res?.jump === "number") {
         this.PC = res.jump;
       }
-    } while (!res?.end);
+    } while (!res || !res?.end);
   }
 }

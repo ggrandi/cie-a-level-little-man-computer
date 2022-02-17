@@ -1,7 +1,8 @@
 #!/usr/local/bin/deno run
-import { Processor } from "./Processor.js";
-import { translator, TranslatorThis } from "./translator.js";
-import { cast } from "../utils.js";
+import { cast } from "../utils";
+
+import { Processor } from "./Processor";
+import { translator, TranslatorThis } from "./translator";
 
 const p = new Processor();
 

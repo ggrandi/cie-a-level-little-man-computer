@@ -1,5 +1,6 @@
 import { styled } from "goober";
 import React, { useState } from "react";
+
 import { FlexRow } from "./goober/styled";
 import { Border } from "./goober/styled/Border";
 import { AsParamNames } from "./goober/styled/utils";
@@ -35,7 +36,7 @@ const Mask = styled("div")`
   overflow: hidden;
 `;
 
-export const CodeEditor = ({ code, dispatch }: CodeEditorProps) => {
+export const CodeEditor = ({ code, dispatch }: CodeEditorProps): JSX.Element => {
   const [scrollTop, setScrollTop] = useState(0);
 
   return (

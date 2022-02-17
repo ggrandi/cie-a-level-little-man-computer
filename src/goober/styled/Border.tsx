@@ -1,5 +1,5 @@
 import { styled } from "goober";
-import { Property } from "csstype";
+import type { Property } from "csstype";
 
 /** a `<div />` element with the specified border */
 export const Border = styled("div")<{

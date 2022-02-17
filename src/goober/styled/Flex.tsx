@@ -1,6 +1,7 @@
 import { styled } from "goober";
+import type { Property } from "csstype";
+
 import { AsParamNames } from "./utils";
-import { Property } from "csstype";
 
 const Flex = styled("div")`
   width: 100%;
@@ -10,7 +11,12 @@ const Flex = styled("div")`
 
 /** a `flex-direction: column` div */
 export const FlexColumn = styled(Flex)<
-  Partial<AsParamNames<{ alignItems: Property.AlignItems; justifyContent: Property.JustifyContent }>>
+  Partial<
+    AsParamNames<{
+      alignItems: Property.AlignItems;
+      justifyContent: Property.JustifyContent;
+    }>
+  >
 >(({ $alignItems, $justifyContent }) => ({
   flexDirection: "column",
   alignItems: $alignItems,
@@ -19,7 +25,12 @@ export const FlexColumn = styled(Flex)<
 
 /** a `flex-direction: row` div */
 export const FlexRow = styled(Flex)<
-  Partial<AsParamNames<{ alignItems?: Property.AlignItems; justifyContent?: Property.JustifyContent }>>
+  Partial<
+    AsParamNames<{
+      alignItems?: Property.AlignItems;
+      justifyContent?: Property.JustifyContent;
+    }>
+  >
 >(({ $alignItems, $justifyContent }) => ({
   flexDirection: "row",
   alignItems: $alignItems,
