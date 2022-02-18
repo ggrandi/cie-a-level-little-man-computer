@@ -4,7 +4,7 @@ export type StrToChars<
   Chars extends string[] = []
 > = Str extends `${infer Char}${infer Rest}` ? StrToChars<Rest, [...Chars, Char]> : Chars;
 
-/** converts a set of character[] into a string */
+/** converts a character[] into a string */
 export type CharsToStr<Chars extends string[], Str extends string = ""> = Chars extends [
   infer Next,
   ...infer Rest
@@ -31,3 +31,5 @@ export type ToReducerActions<T extends Record<string, Record<string, unknown>>> 
     ? { type: K }
     : { type: K } & T[K];
 }[Exclude<keyof T, "type">];
+
+export type Optional<T> = { property?: T }["property"];

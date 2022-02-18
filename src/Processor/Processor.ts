@@ -49,6 +49,7 @@ export interface ProcessorConstructorOpts {
     ACC: number;
     memory: string[];
   }): void;
+  memory: Uint16Array;
 }
 
 export class Processor implements ProcessorBase {
@@ -72,14 +73,23 @@ export class Processor implements ProcessorBase {
   /** min int for this vm */
   static readonly MIN_INT = 0;
 
-  private output: Required<ProcessorConstructorOpts>["output"];
-  private dumpLogger: Required<ProcessorConstructorOpts>["dumpLogger"];
+  output: Required<ProcessorConstructorOpts>["output"];
+  dumpLogger: Required<ProcessorConstructorOpts>["dumpLogger"];
 
   /** representation of the memory */
-  #memory = new Uint16Array(Processor.MAX_INT + 1);
+  #memory: Uint16Array;
   constructor(opts?: ProcessorConstructorOpts) {
     this.output = opts?.output ?? console.log;
     this.dumpLogger = opts?.dumpLogger ?? console.info;
+    const memoryLength = Processor.MAX_INT + 1;
+    if (opts?.memory) {
+      if (opts.memory.length !== memoryLength) {
+        throw new Error(`The memory passed has to be of length ${memoryLength}`);
+      }
+      this.#memory = opts.memory;
+    } else {
+      this.#memory = new Uint16Array(memoryLength);
+    }
   }
 
   /** accumulator */
@@ -161,8 +171,13 @@ export class Processor implements ProcessorBase {
   }
 
   /** returns a slice of memory as 4 digit hexadecimal */
-  getMemorySlice(start?: number, end?: number): string[] {
-    return [...this.#memory.slice(start, end)].map((n) => toBaseNString(n, 16, 4));
+  getMemorySlice(start?: number, end?: number): Uint16Array {
+    return this.#memory.slice(start, end);
+  }
+
+  /** returns a slice of memory as 4 digit hexadecimal */
+  static toStringMemorySlice(memory: Uint16Array): string[] {
+    return [...memory].map((n) => toBaseNString(n, 16, 4));
   }
 
   /** clears all the memory */
@@ -186,7 +201,7 @@ export class Processor implements ProcessorBase {
       CIR: this.CIR,
       SR: this.SR,
       ACC: this.ACC,
-      memory: this.getMemorySlice(),
+      memory: Processor.toStringMemorySlice(this.getMemorySlice()),
     });
   }
 
@@ -258,6 +273,8 @@ export class Processor implements ProcessorBase {
     // adds a breakpoint and prints dumps the current memory
     this.dumpMemory();
 
+    // sets a breakpoint in the code
+    // eslint-disable-next-line no-debugger
     debugger;
   }
 

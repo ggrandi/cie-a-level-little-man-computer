@@ -283,18 +283,21 @@ const getOperand = (operand?: string): GetOperandReturn => {
   return { n, address, register, label, type };
 };
 
-type TranslatorLogger = (lineNumber: number, errors: string[]) => void;
+type TranslatorErrorLogger = (lineNumber: number, errors: string[]) => void;
+
+export const formatTranslatorErrors = (lineNumber: number, errors: string[]): string => {
+  const lineNumberWarning = `line ${lineNumber}: `;
+  return lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`);
+};
 
 /** the default logger for translator */
-const defaultLogger: TranslatorLogger = (lineNumber: number, errors: string[]) => {
-  const lineNumberWarning = `line ${lineNumber}: `;
-
-  console.error(lineNumberWarning + errors.join(`\n${spaceString(lineNumberWarning.length)}`));
+const defaultErrorLogger: TranslatorErrorLogger = (lineNumber: number, errors: string[]) => {
+  console.error(formatTranslatorErrors(lineNumber, errors));
 };
 
 /** the type to make translator output more values */
 export type TranslatorThis = {
-  logger?: TranslatorLogger | undefined;
+  getErrors?: TranslatorErrorLogger | undefined;
   getLabels?: ((labelMap: ReadonlyMap<string, number>) => void) | undefined;
 };
 
@@ -307,11 +310,11 @@ export type TranslatorThis = {
 export function translator(this: TranslatorThis | void, assemblyCode: string): Uint16Array {
   let hasErrored = false;
 
-  const logger: TranslatorLogger = this?.logger ?? defaultLogger;
+  const getErrors: TranslatorErrorLogger = this?.getErrors ?? defaultErrorLogger;
 
-  const logError: TranslatorLogger = (...args: Parameters<TranslatorLogger>) => {
+  const logError: TranslatorErrorLogger = (...args: Parameters<TranslatorErrorLogger>) => {
     hasErrored = true;
-    logger(...args);
+    getErrors(...args);
   };
 
   // split the code by lines and only take lines that have code
@@ -421,8 +424,8 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
           ) {
             // if the second value is a number, it could be either an address or a label issue
             logError(lineNumber, [
-              `either label error: ${labelDeclaration.error}`,
-              `or instruction error: ${instructionType.error}`,
+              `either label error: "${labelDeclaration.error}"`,
+              `or instruction error: "${instructionType.error}"`,
             ]);
           } else {
             logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
@@ -430,8 +433,8 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
         } else if (operators.length === 1 && !operand.n.ok) {
           // it has to be either an opcode or a number and since both aren't true, display both error messages
           logError(lineNumber, [
-            `either instruction error: ${instructionType.error}`,
-            `or number error: ${operand.n.error}`,
+            `either instruction error: "${instructionType.error}"`,
+            `or number error: "${operand.n.error}"`,
           ]);
         } else {
           logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);

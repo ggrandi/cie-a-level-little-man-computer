@@ -145,7 +145,7 @@ console.log(`showing logging errors with a different logger`);
 // showing logging the errors with a different logger
 translator.call(
   cast<TranslatorThis>({
-    logger: console.log,
+    getErrors: console.log,
   }),
   `
 label: FOO bar baz

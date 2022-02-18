@@ -1,7 +1,8 @@
 {
-  "parser": "@typescript-eslint/parser", // Specifies the ESLint parser
+  "parser": "@typescript-eslint/parser",
   "extends": [
-    "plugin:@typescript-eslint/recommended", // Uses the recommended rules from the @typescript-eslint/eslint-plugin
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
     "plugin:react/recommended",
     "plugin:react-hooks/recommended",
     "plugin:prettier/recommended",
@@ -9,18 +10,28 @@
     "plugin:import/typescript"
   ],
   "parserOptions": {
-    "ecmaVersion": 2022, // Allows for the parsing of modern ECMAScript features
-    "sourceType": "module" // Allows for the use of imports
+    "ecmaVersion": 2022,
+    "sourceType": "module"
   },
   "rules": {
-    // Place to specify ESLint rules. Can be used to overwrite rules specified from the extended configs
-    "@typescript-eslint/explicit-function-return-type": ["error", { "allowExpressions": true }],
+    "@typescript-eslint/explicit-function-return-type": [
+      "error",
+      {
+        "allowExpressions": true,
+        "allowHigherOrderFunctions": true,
+        "allowTypedFunctionExpressions": true,
+        "allowDirectConstAssertionInArrowFunctions": true
+      }
+    ],
     "@typescript-eslint/explicit-module-boundary-types": "error",
-    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }
+    ],
+
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
     "react/self-closing-comp": "error",
-    "@typescript-eslint/no-explicit-any": "off",
 
     "import/no-extraneous-dependencies": "error",
     "import/extensions": ["error", "never", { "svg": "always" }],

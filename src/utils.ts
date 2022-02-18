@@ -7,7 +7,7 @@ export const match =
     val: T
   ) => keyof Schema extends keyof T ? (keyof T extends keyof Schema ? T : void) : void) =>
   <T extends Schema>(val: T) =>
-    val as any;
+    val as never;
 
 /** turns a number into a base n string */
 export const toBaseNString = (n: number, base: number, length = 0): string =>
