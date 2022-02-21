@@ -3,12 +3,14 @@ import * as React from "react";
 
 import { WIDTH_SWITCH } from "./constants";
 import { ColoredSpan, FlexRow } from "./goober/styled";
+import { Processor } from "./Processor/Processor";
 import { Optional } from "./type-utils";
 import { ProcessorReducerState } from "./useProcessorReducer";
 
 interface MemoryDisplayProps {
-  memory: string[];
-  labels: ProcessorReducerState["labels"];
+  state: Pick<ProcessorReducerState, "memory" | "labels"> & {
+    registers: Pick<ProcessorReducerState["registers"], "PC">;
+  };
 }
 
 const MemoryGrid = styled("div")`
@@ -28,6 +30,7 @@ interface MemoryCellProps {
   address: number;
   memory: string;
   labels: ProcessorReducerState["labels"];
+  PC: ProcessorReducerState["registers"]["PC"];
 }
 
 const MemoryCellDisplay = styled("pre")`
@@ -37,9 +40,10 @@ const MemoryCellDisplay = styled("pre")`
   }
 `;
 
-const MemoryCell = ({ address, memory, labels }: MemoryCellProps): JSX.Element => {
+const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Element => {
   const currentLabel = labels[address] as Optional<typeof labels[typeof address]>;
-  const color = currentLabel ? "#ffa" : memory === "0000" ? "#fdd" : "white";
+  const color =
+    PC === address ? "#afa" : currentLabel ? "#ffa" : memory === "0000" ? "#fdd" : "#fff";
 
   return (
     <FlexRow $alignItems={"center"} $justifyContent={"center"} $backgroundColor={color}>
@@ -52,13 +56,19 @@ const MemoryCell = ({ address, memory, labels }: MemoryCellProps): JSX.Element =
   );
 };
 
-export const MemoryDisplay = ({ memory, labels }: MemoryDisplayProps): JSX.Element => {
+export const MemoryDisplay = ({
+  state: {
+    memory,
+    labels,
+    registers: { PC },
+  },
+}: MemoryDisplayProps): JSX.Element => {
   return (
     <MemoryGrid>
       {
         // display the memory as a grid of cells
-        memory.map((memory, address) => (
-          <MemoryCell key={`memory-display-${address}`} {...{ address, memory }} {...{ labels }} />
+        Processor.toStringMemorySlice(memory).map((memory, address) => (
+          <MemoryCell key={`memory-display-${address}`} {...{ address, memory, labels, PC }} />
         ))
       }
     </MemoryGrid>

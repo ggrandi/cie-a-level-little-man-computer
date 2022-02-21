@@ -87,9 +87,6 @@ const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTy
 const commentDelimiter = "//";
 const commentRegex = new RegExp(`\\s*${commentDelimiter}.*$`);
 
-/** whether a given integer is within the safe range of the Processor */
-const isAllowedInt = (int: number): boolean => Processor.MIN_INT <= int && Processor.MAX_INT >= int;
-
 /** gets an assembly number from a string or gives a reason as to why it is invalid */
 const getN = (n: string): Result<number, string> => {
   // checks if it has the correct prefix
@@ -119,7 +116,7 @@ const getN = (n: string): Result<number, string> => {
   }
 
   // checks if the integer is in the allowed range
-  return isAllowedInt(int)
+  return Processor.isSafeInt(int)
     ? Ok(int)
     : Err(`The number '${int}' is not in the allowed range for the processor`);
 };
@@ -135,7 +132,7 @@ const getAddress = (address: string): Result<number, string> => {
   }
 
   // checks if it is an allowed integer
-  return isAllowedInt(int)
+  return Processor.isSafeInt(int)
     ? Ok(int)
     : Err(`the address '${address}' is not in the allowed range of the processor`);
 };

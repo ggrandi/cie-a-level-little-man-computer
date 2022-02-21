@@ -8,7 +8,6 @@ import { ControlButtons } from "./ControlButtons";
 import { MemoryDisplay } from "./MemoryDisplay";
 import { useProcessorReducer } from "./useProcessorReducer";
 import { RegisterDisplay } from "./RegisterDisplay";
-import { Processor } from "./Processor/Processor";
 
 /** the main component for the visualisation website */
 export const App = (): JSX.Element => {
@@ -31,10 +30,7 @@ export const App = (): JSX.Element => {
         </FlexChild>
         <FlexChild $flex={4}>
           <FlexColumn $alignItems={"center"} $justifyContent={"center"}>
-            <MemoryDisplay
-              memory={Processor.toStringMemorySlice(state.memory)}
-              labels={state.labels}
-            />
+            <MemoryDisplay {...{ state }} />
           </FlexColumn>
         </FlexChild>
       </FlexRowMaxWidth>

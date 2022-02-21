@@ -49,7 +49,8 @@ export interface ProcessorConstructorOpts {
     ACC: number;
     memory: string[];
   }): void;
-  memory: Uint16Array;
+  memory?: Uint16Array;
+  PC?: number;
 }
 
 export class Processor implements ProcessorBase {
@@ -81,6 +82,7 @@ export class Processor implements ProcessorBase {
   constructor(opts?: ProcessorConstructorOpts) {
     this.output = opts?.output ?? console.log;
     this.dumpLogger = opts?.dumpLogger ?? console.info;
+
     const memoryLength = Processor.MAX_INT + 1;
     if (opts?.memory) {
       if (opts.memory.length !== memoryLength) {
@@ -89,6 +91,16 @@ export class Processor implements ProcessorBase {
       this.#memory = opts.memory;
     } else {
       this.#memory = new Uint16Array(memoryLength);
+    }
+
+    if (opts?.PC) {
+      if (!Processor.isSafeInt(opts.PC)) {
+        throw new Error(
+          `The program counter ${opts.PC} has to be in the allowed range of the processor`
+        );
+      } else {
+        this.PC = opts.PC;
+      }
     }
   }
 
@@ -205,6 +217,27 @@ export class Processor implements ProcessorBase {
     });
   }
 
+  /** gets all the registers from the processor */
+  getRegisters(): {
+    IX: number;
+    PC: number;
+    MAR: number;
+    MDR: number;
+    CIR: number;
+    SR: string;
+    ACC: number;
+  } {
+    return {
+      ACC: this.ACC,
+      PC: this.PC,
+      MAR: this.MAR,
+      MDR: this.MDR,
+      CIR: this.CIR,
+      IX: this.IX,
+      SR: this.SR,
+    };
+  }
+
   /** takes an int and performs underflow/overflow until it is within the necessary range */
   static makeIntValid(int: number): number {
     if (int > Processor.MAX_INT) {
@@ -250,6 +283,11 @@ export class Processor implements ProcessorBase {
 
   static combineInstruction(opcode: number, operand: number): number {
     return (opcode << 8) + operand;
+  }
+
+  /** whether a given integer is within the safe range of the Processor */
+  static isSafeInt(int: number): boolean {
+    return Processor.MIN_INT <= int && Processor.MAX_INT >= int;
   }
 
   #setOperand(address: number, operand: number): void {
@@ -494,18 +532,6 @@ export class Processor implements ProcessorBase {
   }
   //#endregion
 
-  /** runs a command
-   * @param opcode the opcode of the command
-   * @param operand the operand of the command
-   * @returns whether the program should stop
-   */
-  runInstruction<Code extends Opcodes>(
-    opcode: Code,
-    operand: Parameters<Processor[Code]>[0]
-  ): InstructionReturns {
-    return this[opcode](operand as number);
-  }
-
   /** loads the assembly code `code` into memory  */
   loadCode(code: string): Uint16Array {
     const memory = translator(code);
@@ -522,6 +548,33 @@ export class Processor implements ProcessorBase {
     }
   }
 
+  /** runs the next instruction in memory */
+  runNextInstruction(): InstructionReturns {
+    // Part of Fetch Execute Cycle according to the AS textbook
+
+    // MAR <- [PC]       contents of PC copied into MAR
+    this.MAR = this.#memory[this.PC];
+
+    // MDR <- [[MAR]]    data stored at address shown in MAR is copied into MDR
+    this.MDR = this.#getOperand(this.PC);
+
+    // CIR <- [MDR]      contents of MDR copied into CIR
+    this.CIR = this.#getOpcode(this.PC);
+
+    // PC  <- [PC] + 1   PC is incremented by 1
+    this.PC++;
+
+    const res = this[this.CIR as Opcodes](this.MDR);
+
+    // debugger;
+
+    if (res && typeof res?.jump === "number") {
+      this.PC = res.jump;
+    }
+
+    return res;
+  }
+
   /**
    * Runs a program in memory starting from the `PC`
    * @param PC the initial program counter (default: 0)
@@ -531,27 +584,8 @@ export class Processor implements ProcessorBase {
     let res: InstructionReturns;
 
     do {
-      // Part of Fetch Execute Cycle according to the AS textbook
-
-      // MAR <- [PC]       contents of PC copied into MAR
-      this.MAR = this.#memory[this.PC];
-
-      // MDR <- [[MAR]]    data stored at address shown in MAR is copied into MDR
-      this.MDR = this.#getOperand(this.PC);
-
-      // CIR <- [MDR]      contents of MDR copied into CIR
-      this.CIR = this.#getOpcode(this.PC);
-
-      // PC  <- [PC] + 1   PC is incremented by 1
-      this.PC++;
-
-      res = this.runInstruction(this.CIR as Opcodes, this.MDR);
-
-      // debugger;
-
-      if (res && typeof res?.jump === "number") {
-        this.PC = res.jump;
-      }
+      // runs the next instruction in memory
+      res = this.runNextInstruction();
     } while (!res || !res?.end);
   }
 }

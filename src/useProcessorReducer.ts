@@ -27,6 +27,7 @@ export interface ProcessorReducerState {
   charOutput: string;
   labels: Record<string, number> & Record<number, string>;
   translatorErrors: TranslatorErrors[];
+  registers: ReturnType<Processor["getRegisters"]>;
 }
 
 /** function to actually use the state and actions */
@@ -65,7 +66,10 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // fetches the memory from the processor
       const memory = processor.getMemorySlice();
 
-      return { ...prevState, memory, charOutput, labels, translatorErrors };
+      // fetches the registers from the processor
+      const registers = processor.getRegisters();
+
+      return { ...prevState, memory, charOutput, labels, translatorErrors, registers };
     }
     case "runCode": {
       let charOutput = "";
@@ -84,7 +88,10 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // fetches the memory from the processor
       const memory = processor.getMemorySlice();
 
-      return { ...prevState, memory, charOutput };
+      // fetches the registers from the processor
+      const registers = processor.getRegisters();
+
+      return { ...prevState, memory, charOutput, registers };
     }
     case "setCode": {
       // updates the code
@@ -99,9 +106,18 @@ const initializeProcessorReducerState = (): ProcessorReducerState => ({
   charOutput: "",
   labels: {},
   translatorErrors: [],
+  registers: {
+    ACC: 0,
+    CIR: 0,
+    IX: 0,
+    MAR: 0,
+    MDR: 0,
+    PC: 0,
+    SR: "0000",
+  },
 });
 
-const initialCode = `// print out a string\nstart:\tLDX string\n\tCMP #0\n\tJPE end\n\tOUT\n\tINC IX\n\tJMP start\nend:\tEND\nstring:\t#&48\n\t#&65\n\t#&6C\n\t#&6C\n\t#&6F\n\t#&20\n\t#&57\n\t#&6F\n\t#&72\n\t#&6C\n\t#&64\n\t#&21\n\t#&0A\n`;
+const initialCode = `// print out a string\nstart:\tLDX string\n\tCMP #0\n\tJPE end\n\tOUT\n\tINC IX\n\tJMP start\nend:\tEND\nstring:\t#&48\n\t#&65\n\t#&6C\n\t#&6C\n\t#&6F\n\t#&2C\n\t#&20\n\t#&57\n\t#&6F\n\t#&72\n\t#&6C\n\t#&64\n\t#&21\n\t#&0A\n`;
 
 /** Dispatcher type for the processor reducer */
 export type ProcessorReducerDispatch = React.Dispatch<ProcessorActions>;

@@ -7,7 +7,7 @@ import { AsParamNames } from "./goober/styled/utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface CodeEditorProps {
-  state: ProcessorReducerState;
+  state: Pick<ProcessorReducerState, "code" | "translatorErrors">;
   dispatch: ProcessorReducerDispatch;
 }
 
@@ -38,7 +38,10 @@ const Mask = styled("div")`
   overflow: hidden;
 `;
 
-export const CodeEditor = ({ state, dispatch }: CodeEditorProps): JSX.Element => {
+export const CodeEditor = ({
+  state: { code, translatorErrors },
+  dispatch,
+}: CodeEditorProps): JSX.Element => {
   const [scrollTop, setScrollTop] = useState(0);
 
   return (
@@ -49,11 +52,11 @@ export const CodeEditor = ({ state, dispatch }: CodeEditorProps): JSX.Element =>
           <Pre $scrollTop={scrollTop}>
             {
               // turns the code into line numbers
-              state.code.split("\n").map((_, i) => {
+              code.split("\n").map((_, i) => {
                 const lineText = `${i}.`.padEnd(4, " ");
 
                 const lineIsError =
-                  state.translatorErrors.find(({ lineNumber }) => lineNumber === i) !== undefined;
+                  translatorErrors.find(({ lineNumber }) => lineNumber === i) !== undefined;
 
                 return (
                   <React.Fragment key={`lineNumber for line ${i}`}>
@@ -103,7 +106,7 @@ export const CodeEditor = ({ state, dispatch }: CodeEditorProps): JSX.Element =>
               ev.preventDefault();
             }
           }}
-          value={state.code}
+          value={code}
           data-ms-editor={false}
           spellCheck={false}
         />

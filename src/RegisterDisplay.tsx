@@ -13,6 +13,10 @@ export const RegisterDisplay = ({ state }: RegisterDisplayProps): JSX.Element =>
     <>
       <p>Register Display:</p>
       <pre>
+        Registers:{"\n"}
+        {Object.entries(state.registers).map(([register, value]) => `${register} => ${value}\n`)}
+      </pre>
+      <pre>
         Output:{"\n"}
         {state.charOutput}
       </pre>
