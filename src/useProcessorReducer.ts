@@ -202,12 +202,10 @@ const initializeProcessorReducerState = (code: string): ProcessorReducerState =>
   doneRunning: true,
 });
 
-const initialCode = `// print out a string\nstart:\tLDX string\n\tCMP #0\n\tJPE end\n\tOUT\n\tINC IX\n\tJMP start\nend:\tEND\nstring:\t#&48\n\t#&65\n\t#&6C\n\t#&6C\n\t#&6F\n\t#&2C\n\t#&20\n\t#&57\n\t#&6F\n\t#&72\n\t#&6C\n\t#&64\n\t#&21\n\t#&0A\n`;
-
 /** Dispatcher type for the processor reducer */
 export type ProcessorReducerDispatch = React.Dispatch<ProcessorActions>;
 
 /** hook to use the processor reducer */
 export const useProcessorReducer = (): [ProcessorReducerState, ProcessorReducerDispatch] => {
-  return useReducer(processorReducer, initialCode, initializeProcessorReducerState);
+  return useReducer(processorReducer, examples["Hello World!"], initializeProcessorReducerState);
 };

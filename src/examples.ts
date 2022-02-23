@@ -15,7 +15,7 @@ second:	#&30
 third:	#&20
 total:			// implied to start at 0
 `.slice(1),
-  "Hello World": `
+  "Hello World!": `
 // print out a string
 start:	LDX string	// loads the next value of the char[]
 	CMP #0		// checks if that value exists

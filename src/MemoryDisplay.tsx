@@ -44,7 +44,7 @@ const MemoryCellDisplay = styled("pre")`
 const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Element => {
   const currentLabel = labels[address] as Optional<typeof labels[typeof address]>;
   const color =
-    PC - 1 === address ? "#dfd" : currentLabel ? "#ffd" : memory === "0000" ? "#fee" : "#fff";
+    PC === address ? "#dfd" : currentLabel ? "#ffd" : memory === "0000" ? "#fee" : "#fff";
 
   return (
     <FlexRow $alignItems={"center"} $justifyContent={"center"} $backgroundColor={color}>
@@ -54,7 +54,7 @@ const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Eleme
         {currentLabel && (
           <>
             {"\n"}
-            <ColoredSpan $color={"#950"}>{currentLabel}</ColoredSpan>
+            <ColoredSpan $color={"#3e2e00"}>{currentLabel}</ColoredSpan>
           </>
         )}
       </MemoryCellDisplay>
