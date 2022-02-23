@@ -34,6 +34,14 @@ export const ControlButtons = ({ dispatch }: ControlButtonsProps): JSX.Element =
           }}>
           run code
         </ControlButton>
+        <ControlButton
+          type="button"
+          onClick={(_ev) => {
+            // runs the next instruction
+            dispatch({ type: "runNextInstruction" });
+          }}>
+          step by one
+        </ControlButton>
       </FlexRow>
     </WidthHeight>
   );

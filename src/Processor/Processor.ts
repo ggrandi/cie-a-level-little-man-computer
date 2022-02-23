@@ -51,6 +51,9 @@ export interface ProcessorConstructorOpts {
   }): void;
   memory?: Uint16Array;
   PC?: number;
+  IX?: number;
+  SR?: string;
+  ACC?: number;
 }
 
 export class Processor implements ProcessorBase {
@@ -96,10 +99,40 @@ export class Processor implements ProcessorBase {
     if (opts?.PC) {
       if (!Processor.isSafeInt(opts.PC)) {
         throw new Error(
-          `The program counter ${opts.PC} has to be in the allowed range of the processor`
+          `The program counter (PC) ${opts.PC} has to be in the allowed range of the processor`
         );
       } else {
         this.PC = opts.PC;
+      }
+    }
+
+    if (opts?.ACC) {
+      if (!Processor.isSafeInt(opts.ACC)) {
+        throw new Error(
+          `The accumulator (ACC) ${opts.ACC} has to be in the allowed range of the processor`
+        );
+      } else {
+        this.ACC = opts.ACC;
+      }
+    }
+
+    if (opts?.IX) {
+      if (!Processor.isSafeInt(opts.IX)) {
+        throw new Error(
+          `The index register (IX) ${opts.IX} has to be in the allowed range of the processor`
+        );
+      } else {
+        this.IX = opts.IX;
+      }
+    }
+
+    if (opts?.SR) {
+      const SR = parseInt(opts.SR, 2);
+
+      if (0 <= SR && SR < 2 ** 4) {
+        this.#SR = SR;
+      } else {
+        throw new Error(`The status register (SR) ${opts.SR} has to be a 4 bit binary string`);
       }
     }
   }
