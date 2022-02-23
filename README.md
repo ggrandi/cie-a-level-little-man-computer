@@ -46,4 +46,4 @@ Possible operands:
 | XOR         | `<address>`  | Bitwise XOR operation of the contents of ACC with the contents of `<address>`                                                                   |
 |             | `#n`         | Bitwise XOR operation of the contents of ACC with the operand                                                                                   |
 | BRK         |              | **NON STANDARD INSTRUCTION.** adds a breakpoint in the browser console and dumps the current memory into the browser console                    |
-| ERR         | `#n`         | **NON STANDARD INSTRUCTION.** Errors with error code n                                                                                          |
+| ERR         | `#n`         | **NON STANDARD INSTRUCTION.** Errors with error code `#n`                                                                                          |
