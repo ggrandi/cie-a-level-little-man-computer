@@ -20,7 +20,7 @@ export const App = (): JSX.Element => {
         <FlexChild $flex={3}>
           <FlexColumn>
             <CodeEditor {...{ state, dispatch }} />
-            <ControlButtons {...{ dispatch }} />
+            <ControlButtons {...{ state, dispatch }} />
           </FlexColumn>
         </FlexChild>
         <FlexChild $flex={1}>

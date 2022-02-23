@@ -4,19 +4,21 @@ import { Processor } from "./Processor/Processor";
 import { translator } from "./Processor/translator";
 import { ToReducerActions } from "./type-utils";
 import { createUndoable, redo, setNext, undo, Undoable } from "./undoable";
+import { examples } from "./examples";
 
 /** the different types of actions the reducer can have */
 export type ProcessorActions = ToReducerActions<{
+  setCode: {
+    code: string;
+  };
   loadCode: Record<string, never>;
   runCode: {
     PC?: number;
   };
-  setCode: {
-    code: string;
-  };
+  runNextInstruction: Record<string, never>;
   undo: Record<string, never>;
   redo: Record<string, never>;
-  runNextInstruction: Record<string, never>;
+  loadExample: { example: keyof typeof examples };
 }>;
 
 interface TranslatorErrors {
@@ -33,11 +35,18 @@ export interface ProcessorReducerState {
   translatorErrors: TranslatorErrors[];
   registers: ReturnType<Processor["getRegisters"]>;
   doneRunning: boolean;
+  error?: number;
 }
 
 /** function to actually use the state and actions */
 const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prevState, action) => {
   switch (action.type) {
+    case "setCode": {
+      // updates the code
+      const code = setNext(prevState.code, action.code);
+
+      return { ...prevState, code };
+    }
     case "loadCode": {
       // creates a new processor
       const processor = new Processor();
@@ -151,12 +160,6 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
 
       return { ...prevState, memory, charOutput, registers, doneRunning };
     }
-    case "setCode": {
-      // updates the code
-      const code = setNext(prevState.code, action.code);
-
-      return { ...prevState, code };
-    }
     case "undo": {
       // undo the code
       const code = undo(prevState.code);
@@ -166,6 +169,15 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
     case "redo": {
       // redo the code
       const code = redo(prevState.code);
+
+      return { ...prevState, code };
+    }
+    case "loadExample": {
+      // gets the code for the example
+      const example = examples[action.example];
+
+      // sets the example code as the next state
+      const code = setNext(prevState.code, example);
 
       return { ...prevState, code };
     }

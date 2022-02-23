@@ -20,7 +20,7 @@ const MemoryGrid = styled("div")`
   gap: 1px 1px;
   background-color: black;
   border: 1px solid black;
-  width: calc(100% - (16 - 1) * 1px - 2 * 1px);
+  width: calc(100% - 2 * 1px);
   height: 100%;
   @media screen and (max-width: ${WIDTH_SWITCH}px) {
     height: unset;
@@ -44,7 +44,7 @@ const MemoryCellDisplay = styled("pre")`
 const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Element => {
   const currentLabel = labels[address] as Optional<typeof labels[typeof address]>;
   const color =
-    PC === address ? "#dfd" : currentLabel ? "#ffd" : memory === "0000" ? "#fee" : "#fff";
+    PC - 1 === address ? "#dfd" : currentLabel ? "#ffd" : memory === "0000" ? "#fee" : "#fff";
 
   return (
     <FlexRow $alignItems={"center"} $justifyContent={"center"} $backgroundColor={color}>
