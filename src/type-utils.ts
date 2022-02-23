@@ -24,12 +24,14 @@ export type Last<T extends unknown[]> = T extends [...infer Rest, infer L] ? [L,
 
 export type MapKey<T extends Map<unknown, unknown>> = T extends Map<infer K, unknown> ? K : never;
 
-export type Test<T> = { [K in keyof T]: T[K] };
+export type ToReadable<T> = { [K in keyof T]: T[K] };
 
 export type ToReducerActions<T extends Record<string, Record<string, unknown>>> = {
   [K in Exclude<keyof T, "type">]: T[K] extends Record<string, never>
     ? { type: K }
-    : { type: K } & T[K];
+    : { type: K } & T[K] extends infer V
+    ? { [VKey in keyof V]: V[VKey] }
+    : { type: K };
 }[Exclude<keyof T, "type">];
 
 export type Optional<T> = { property?: T }["property"];

@@ -52,7 +52,7 @@ export const CodeEditor = ({
           <Pre $scrollTop={scrollTop}>
             {
               // turns the code into line numbers
-              code.split("\n").map((_, i) => {
+              code.present.split("\n").map((_, i) => {
                 const lineText = `${i}.`.padEnd(4, " ");
 
                 const lineIsError =
@@ -104,9 +104,17 @@ export const CodeEditor = ({
 
               // prevent the focus lose
               ev.preventDefault();
+            } else if (ev.metaKey || ev.ctrlKey) {
+              if ((ev.shiftKey && ev.key === "z") || ev.key === "y") {
+                dispatch({ type: "redo" });
+                ev.preventDefault();
+              } else if (ev.key === "z") {
+                dispatch({ type: "undo" });
+                ev.preventDefault();
+              }
             }
           }}
-          value={code}
+          value={code.present}
           data-ms-editor={false}
           spellCheck={false}
         />

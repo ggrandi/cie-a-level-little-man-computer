@@ -87,6 +87,10 @@ const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTy
 const commentDelimiter = "//";
 const commentRegex = new RegExp(`\\s*${commentDelimiter}.*$`);
 
+const denNumber = /#([0-9]+)$/;
+const binNumber = /#B([01]+)$/;
+const hexNumber = /#&([0-9a-fA-F]+)$/;
+
 /** gets an assembly number from a string or gives a reason as to why it is invalid */
 const getN = (n: string): Result<number, string> => {
   // checks if it has the correct prefix
@@ -96,23 +100,31 @@ const getN = (n: string): Result<number, string> => {
     return Err("have to prefix number with a #");
   }
 
-  const hasNonDenaryBase = isNaN(Number(n[1]));
+  let int: number;
 
-  if (hasNonDenaryBase && !"B&".includes(n[1])) {
-    return Err(
-      `the only other bases allowed are B (binary) or & (hexadecimal). '${n[1]}' was not recognized.`
-    );
-  }
+  if (denNumber.test(n)) {
+    // checks if the number is denary
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const [, intString] = denNumber.exec(n)!;
 
-  // gets the number part
-  const numberPart = n.slice(hasNonDenaryBase ? 2 : 1);
+    // converts to denary
+    int = parseInt(intString, 10);
+  } else if (binNumber.test(n)) {
+    // checks if the number is binary
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const [, intString] = binNumber.exec(n)!;
 
-  // converts it into an integer
-  const int = parseInt(numberPart, hasNonDenaryBase ? (n[1] === "B" ? 2 : 16) : 10);
+    // converts to binary
+    int = parseInt(intString, 2);
+  } else if (hexNumber.test(n)) {
+    // checks if the number is hexadecimal
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const [, intString] = hexNumber.exec(n)!;
 
-  // checks if the integer is actually a number
-  if (isNaN(int)) {
-    return Err(`the number part '${numberPart}' is not a valid number`);
+    // converts to hexadecimal
+    int = parseInt(intString, 16);
+  } else {
+    return Err(`Unrecognizable number '${n.slice(1)}'. Add a B for binary or & for hexadecimal`);
   }
 
   // checks if the integer is in the allowed range
@@ -542,7 +554,8 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
 
         operand = 0x00;
       } else {
-        operand = labelMap.get(operand) || 0x00;
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        operand = labelMap.get(operand)!;
       }
     }
 

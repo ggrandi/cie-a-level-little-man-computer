@@ -24,7 +24,9 @@ export const RegisterDisplay = ({ state }: RegisterDisplayProps): JSX.Element =>
         labels:{"\n"}
         {Object.entries(state.labels)
           .filter(([label]) => isNaN(Number(label)))
-          .map(([label, address]) => `${label} => ${address}\n`)}
+          .map(([label, address]) => (
+            <React.Fragment key={`register-${label}`}>{`${label} => ${address}\n`}</React.Fragment>
+          ))}
       </pre>
       {state.translatorErrors.length != 0 && (
         <>

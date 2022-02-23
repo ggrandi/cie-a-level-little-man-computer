@@ -6,6 +6,7 @@ import { ColoredSpan, FlexRow } from "./goober/styled";
 import { Processor } from "./Processor/Processor";
 import { Optional } from "./type-utils";
 import { ProcessorReducerState } from "./useProcessorReducer";
+import { toBaseNString } from "./utils";
 
 interface MemoryDisplayProps {
   state: Pick<ProcessorReducerState, "memory" | "labels"> & {
@@ -43,14 +44,19 @@ const MemoryCellDisplay = styled("pre")`
 const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Element => {
   const currentLabel = labels[address] as Optional<typeof labels[typeof address]>;
   const color =
-    PC === address ? "#afa" : currentLabel ? "#ffa" : memory === "0000" ? "#fdd" : "#fff";
+    PC === address ? "#dfd" : currentLabel ? "#ffd" : memory === "0000" ? "#fee" : "#fff";
 
   return (
     <FlexRow $alignItems={"center"} $justifyContent={"center"} $backgroundColor={color}>
       <MemoryCellDisplay>
-        <ColoredSpan $color={"#0015b3"}>{address.toString().padStart(3, "0")}</ColoredSpan>:{"\n"}
+        <ColoredSpan $color={"#0015b3"}>{toBaseNString(address, 10, 3)}</ColoredSpan>:{"\n"}
         {memory}
-        <ColoredSpan $color={"#ad8100"}>{currentLabel ? "\n" + currentLabel : ""}</ColoredSpan>
+        {currentLabel && (
+          <>
+            {"\n"}
+            <ColoredSpan $color={"#950"}>{currentLabel}</ColoredSpan>
+          </>
+        )}
       </MemoryCellDisplay>
     </FlexRow>
   );

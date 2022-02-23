@@ -3,6 +3,7 @@ import { Reducer, useReducer } from "react";
 import { Processor } from "./Processor/Processor";
 import { translator } from "./Processor/translator";
 import { ToReducerActions } from "./type-utils";
+import { createUndoable, redo, setNext, undo, Undoable } from "./undoable";
 
 /** the different types of actions the reducer can have */
 export type ProcessorActions = ToReducerActions<{
@@ -13,6 +14,8 @@ export type ProcessorActions = ToReducerActions<{
   setCode: {
     code: string;
   };
+  undo: Record<string, never>;
+  redo: Record<string, never>;
 }>;
 
 interface TranslatorErrors {
@@ -22,7 +25,7 @@ interface TranslatorErrors {
 
 /** the state of the processor reducer */
 export interface ProcessorReducerState {
-  code: string;
+  code: Undoable<string>;
   memory: Uint16Array;
   charOutput: string;
   labels: Record<string, number> & Record<number, string>;
@@ -59,7 +62,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
               translatorErrors.push({ lineNumber, errors });
             },
           },
-          prevState.code
+          prevState.code.present
         )
       );
 
@@ -95,13 +98,27 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
     }
     case "setCode": {
       // updates the code
-      return { ...prevState, code: action.code };
+      const code = setNext(prevState.code, action.code);
+
+      return { ...prevState, code };
+    }
+    case "undo": {
+      // undo the code
+      const code = undo(prevState.code);
+
+      return { ...prevState, code };
+    }
+    case "redo": {
+      // redo the code
+      const code = redo(prevState.code);
+
+      return { ...prevState, code };
     }
   }
 };
 // creates initial state for the reducer
-const initializeProcessorReducerState = (): ProcessorReducerState => ({
-  code: initialCode,
+const initializeProcessorReducerState = (code: string): ProcessorReducerState => ({
+  code: createUndoable(code),
   memory: new Uint16Array(Processor.MAX_INT + 1),
   charOutput: "",
   labels: {},
@@ -124,5 +141,5 @@ export type ProcessorReducerDispatch = React.Dispatch<ProcessorActions>;
 
 /** hook to use the processor reducer */
 export const useProcessorReducer = (): [ProcessorReducerState, ProcessorReducerDispatch] => {
-  return useReducer(processorReducer, undefined, initializeProcessorReducerState);
+  return useReducer(processorReducer, initialCode, initializeProcessorReducerState);
 };
