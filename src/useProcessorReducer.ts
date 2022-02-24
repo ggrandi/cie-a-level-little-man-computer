@@ -36,6 +36,7 @@ export interface ProcessorReducerState {
   registers: ReturnType<Processor["getRegisters"]>;
   doneRunning: boolean;
   error?: number;
+  previousInstruction: ReturnType<Processor["getRegisters"]>["PC"] | undefined;
 }
 
 /** function to actually use the state and actions */
@@ -83,6 +84,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // fetches the registers from the processor
       const registers = processor.getRegisters();
 
+      // set the previous instruction to undefined
+      const previousInstruction = undefined;
+
       return {
         ...prevState,
         memory,
@@ -90,6 +94,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         labels,
         translatorErrors,
         registers,
+        previousInstruction,
         doneRunning: false,
       };
     }
@@ -123,7 +128,17 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // fetches the registers from the processor
       const registers = processor.getRegisters();
 
-      return { ...prevState, memory, charOutput, registers, doneRunning: true };
+      // set the previous instruction to one before because the last instruction had to be `END`
+      const previousInstruction = processor.PC - 1;
+
+      return {
+        ...prevState,
+        memory,
+        charOutput,
+        registers,
+        previousInstruction,
+        doneRunning: true,
+      };
     }
     case "runNextInstruction": {
       // don't run if the program has terminated
@@ -133,6 +148,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
 
       // gets the previous charOutput
       let charOutput = prevState.charOutput;
+
+      // set the previous instruction to the previous PC
+      const previousInstruction = prevState.registers.PC;
 
       // creates a new processor based on the current state
       const processor = new Processor({
@@ -158,7 +176,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // fetches the registers from the processor
       const registers = processor.getRegisters();
 
-      return { ...prevState, memory, charOutput, registers, doneRunning };
+      return { ...prevState, memory, charOutput, registers, previousInstruction, doneRunning };
     }
     case "undo": {
       // undo the code
@@ -200,6 +218,7 @@ const initializeProcessorReducerState = (code: string): ProcessorReducerState =>
     SR: "0000",
   },
   doneRunning: true,
+  previousInstruction: undefined,
 });
 
 /** Dispatcher type for the processor reducer */

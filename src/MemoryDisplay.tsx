@@ -4,14 +4,12 @@ import * as React from "react";
 import { WIDTH_SWITCH } from "./constants";
 import { ColoredSpan, FlexRow } from "./goober/styled";
 import { Processor } from "./Processor/Processor";
-import { Optional } from "./type-utils";
+import { DeepPick, Optional } from "./type-utils";
 import { ProcessorReducerState } from "./useProcessorReducer";
 import { toBaseNString } from "./utils";
 
 interface MemoryDisplayProps {
-  state: Pick<ProcessorReducerState, "memory" | "labels"> & {
-    registers: Pick<ProcessorReducerState["registers"], "PC">;
-  };
+  state: DeepPick<ProcessorReducerState, "memory" | "labels" | "previousInstruction">;
 }
 
 const MemoryGrid = styled("div")`
@@ -31,7 +29,7 @@ interface MemoryCellProps {
   address: number;
   memory: string;
   labels: ProcessorReducerState["labels"];
-  PC: ProcessorReducerState["registers"]["PC"];
+  previousInstruction: ProcessorReducerState["previousInstruction"];
 }
 
 const MemoryCellDisplay = styled("pre")`
@@ -41,10 +39,21 @@ const MemoryCellDisplay = styled("pre")`
   }
 `;
 
-const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Element => {
+const MemoryCell = ({
+  address,
+  memory,
+  labels,
+  previousInstruction,
+}: MemoryCellProps): JSX.Element => {
   const currentLabel = labels[address] as Optional<typeof labels[typeof address]>;
   const color =
-    PC === address ? "#dfd" : currentLabel ? "#ffd" : memory === "0000" ? "#fee" : "#fff";
+    previousInstruction === address
+      ? "#dfd"
+      : currentLabel
+      ? "#ffd"
+      : memory === "0000"
+      ? "#fee"
+      : "#fff";
 
   return (
     <FlexRow $alignItems={"center"} $justifyContent={"center"} $backgroundColor={color}>
@@ -63,18 +72,17 @@ const MemoryCell = ({ address, memory, labels, PC }: MemoryCellProps): JSX.Eleme
 };
 
 export const MemoryDisplay = ({
-  state: {
-    memory,
-    labels,
-    registers: { PC },
-  },
+  state: { memory, labels, previousInstruction },
 }: MemoryDisplayProps): JSX.Element => {
   return (
     <MemoryGrid>
       {
         // display the memory as a grid of cells
         Processor.toStringMemorySlice(memory).map((memory, address) => (
-          <MemoryCell key={`memory-display-${address}`} {...{ address, memory, labels, PC }} />
+          <MemoryCell
+            key={`memory-display-${address}`}
+            {...{ address, memory, labels, previousInstruction }}
+          />
         ))
       }
     </MemoryGrid>
