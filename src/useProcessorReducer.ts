@@ -10,6 +10,7 @@ import { examples } from "./examples";
 export type ProcessorActions = ToReducerActions<{
   setCode: {
     code: string;
+    cursorPos: number;
   };
   loadCode: Record<string, never>;
   runCode: {
@@ -28,25 +29,28 @@ interface TranslatorErrors {
 
 /** the state of the processor reducer */
 export interface ProcessorReducerState {
-  code: Undoable<string>;
+  codeState: Undoable<{ code: string; cursorPos: number }>;
   memory: Uint16Array;
   charOutput: string;
   labels: Record<string, number> & Record<number, string>;
   translatorErrors: TranslatorErrors[];
   registers: ReturnType<Processor["getRegisters"]>;
   doneRunning: boolean;
-  error?: number;
   previousInstruction: ReturnType<Processor["getRegisters"]>["PC"] | undefined;
+  error?: number;
 }
 
 /** function to actually use the state and actions */
 const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prevState, action) => {
   switch (action.type) {
     case "setCode": {
-      // updates the code
-      const code = setNext(prevState.code, action.code);
+      // gets the next value of code from the action
+      const { type: _, ...nextCode } = action;
 
-      return { ...prevState, code };
+      // updates the code
+      const codeState = setNext(prevState.codeState, nextCode);
+
+      return { ...prevState, codeState };
     }
     case "loadCode": {
       // creates a new processor
@@ -74,7 +78,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
               translatorErrors.push({ lineNumber, errors });
             },
           },
-          prevState.code.present
+          prevState.codeState.present.code
         )
       );
 
@@ -180,30 +184,31 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
     }
     case "undo": {
       // undo the code
-      const code = undo(prevState.code);
+      const codeState = undo(prevState.codeState);
 
-      return { ...prevState, code };
+      return { ...prevState, codeState };
     }
     case "redo": {
       // redo the code
-      const code = redo(prevState.code);
+      const codeState = redo(prevState.codeState);
 
-      return { ...prevState, code };
+      return { ...prevState, codeState };
     }
     case "loadExample": {
       // gets the code for the example
-      const example = examples[action.example];
+      const code = examples[action.example];
 
       // sets the example code as the next state
-      const code = setNext(prevState.code, example);
+      const codeState = setNext(prevState.codeState, { code, cursorPos: 0 });
 
-      return { ...prevState, code };
+      return { ...prevState, codeState };
     }
   }
 };
+
 // creates initial state for the reducer
 const initializeProcessorReducerState = (code: string): ProcessorReducerState => ({
-  code: createUndoable(code),
+  codeState: createUndoable({ code, cursorPos: 0 }),
   memory: new Uint16Array(Processor.MAX_INT + 1),
   charOutput: "",
   labels: {},

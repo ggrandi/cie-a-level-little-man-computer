@@ -1,17 +1,18 @@
 import { styled } from "goober";
-import React, { useState } from "react";
+import * as React from "react";
 
 import { ColoredSpan, FlexRow } from "./goober/styled";
 import { Border } from "./goober/styled/Border";
 import { AsParamNames } from "./goober/styled/utils";
+import { DeepPick } from "./type-utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface CodeEditorProps {
-  state: Pick<ProcessorReducerState, "code" | "translatorErrors">;
+  state: DeepPick<ProcessorReducerState, "codeState" | "translatorErrors">;
   dispatch: ProcessorReducerDispatch;
 }
 
-const Textarea = styled("textarea")`
+const Textarea = styled("textarea", React.forwardRef)`
   border: 0px;
   resize: none;
   width: calc(100% - 35px);
@@ -39,10 +40,24 @@ const Mask = styled("div")`
 `;
 
 export const CodeEditor = ({
-  state: { code, translatorErrors },
+  state: {
+    codeState: {
+      present: { code, cursorPos },
+    },
+    translatorErrors,
+  },
   dispatch,
 }: CodeEditorProps): JSX.Element => {
-  const [scrollTop, setScrollTop] = useState(0);
+  const [scrollTop, setScrollTop] = React.useState(0);
+
+  const textareaRef = React.useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      if (node) {
+        node.selectionStart = node.selectionEnd = cursorPos;
+      }
+    },
+    [cursorPos]
+  );
 
   return (
     <Border>
@@ -52,7 +67,7 @@ export const CodeEditor = ({
           <Pre $scrollTop={scrollTop}>
             {
               // turns the code into line numbers
-              code.present.split("\n").map((_, i) => {
+              code.split("\n").map((_, i) => {
                 const lineText = `${i}.`.padEnd(4, " ");
 
                 const lineIsError =
@@ -73,9 +88,14 @@ export const CodeEditor = ({
           </Pre>
         </Mask>
         <Textarea
+          ref={textareaRef}
           onChange={(ev) => {
             // dispatch the code to the reducer
-            dispatch({ type: "setCode", code: ev.target.value });
+            dispatch({
+              type: "setCode",
+              code: ev.target.value,
+              cursorPos: ev.currentTarget.selectionStart,
+            });
             // change the scrollTop in the lines of code
             setScrollTop(ev.target.scrollTop);
           }}
@@ -97,6 +117,7 @@ export const CodeEditor = ({
               dispatch({
                 type: "setCode",
                 code: value.substring(0, start) + "\t" + value.substring(end),
+                cursorPos: ev.currentTarget.selectionStart + 1,
               });
 
               // put caret at right position again (add one for the tab)
@@ -114,7 +135,7 @@ export const CodeEditor = ({
               }
             }
           }}
-          value={code.present}
+          value={code}
           data-ms-editor={false}
           spellCheck={false}
         />

@@ -3,11 +3,12 @@ import * as React from "react";
 import { ColoredP } from "./goober/styled";
 import { Opcodes } from "./Processor/Opcodes";
 import { formatTranslatorErrors } from "./Processor/translator";
+import { DeepPick } from "./type-utils";
 import { ProcessorReducerState } from "./useProcessorReducer";
 import { toBaseNString } from "./utils";
 
 interface RegisterDisplayProps {
-  state: ProcessorReducerState;
+  state: DeepPick<ProcessorReducerState, "registers" | "charOutput" | "translatorErrors">;
 }
 
 export const RegisterDisplay = ({ state }: RegisterDisplayProps): JSX.Element => {

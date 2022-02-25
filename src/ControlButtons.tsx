@@ -4,10 +4,11 @@ import * as React from "react";
 import { examples } from "./examples";
 import { FlexRow, WidthHeight } from "./goober/styled";
 import { isKeyOf } from "./Processor/type-guards";
+import { DeepPick } from "./type-utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface ControlButtonsProps {
-  state: ProcessorReducerState;
+  state: DeepPick<ProcessorReducerState, "doneRunning">;
   dispatch: ProcessorReducerDispatch;
 }
 
@@ -49,6 +50,7 @@ export const ControlButtons = ({ state, dispatch }: ControlButtonsProps): JSX.El
         </ControlButton>
         <select
           title="code examples"
+          defaultValue=""
           onChange={(ev) => {
             const example = ev.currentTarget.value;
 
@@ -57,7 +59,7 @@ export const ControlButtons = ({ state, dispatch }: ControlButtonsProps): JSX.El
               ev.currentTarget.value = "";
             }
           }}>
-          <option value="" selected />
+          <option value="" />
           {Object.keys(examples).map((exampleName) => (
             <option key={`code-examples-option-${exampleName}`} value={exampleName}>
               {exampleName}
