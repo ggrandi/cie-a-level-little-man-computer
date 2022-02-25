@@ -4,11 +4,12 @@ import * as React from "react";
 import { examples } from "./examples";
 import { FlexRow, WidthHeight } from "./goober/styled";
 import { isKeyOf } from "./Processor/type-guards";
+import { suggestExample } from "./suggestExample";
 import { DeepPick } from "./type-utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface ControlButtonsProps {
-  state: DeepPick<ProcessorReducerState, "doneRunning">;
+  state: DeepPick<ProcessorReducerState, "doneRunning" | "codeState">;
   dispatch: ProcessorReducerDispatch;
 }
 
@@ -52,12 +53,18 @@ export const ControlButtons = ({ state, dispatch }: ControlButtonsProps): JSX.El
           title="code examples"
           defaultValue=""
           onChange={(ev) => {
-            const example = ev.currentTarget.value;
+            const { value } = ev.currentTarget;
 
-            if (isKeyOf(example, examples)) {
-              dispatch({ type: "loadExample", example });
-              ev.currentTarget.value = "";
+            if (isKeyOf(value, examples)) {
+              dispatch({ type: "loadExample", example: value });
+            } else if (value === "suggest") {
+              suggestExample(
+                prompt("What is the name of your example?") ?? "",
+                state.codeState.present.code
+              );
             }
+
+            ev.currentTarget.value = "";
           }}>
           <option value="" />
           {Object.keys(examples).map((exampleName) => (
@@ -65,6 +72,8 @@ export const ControlButtons = ({ state, dispatch }: ControlButtonsProps): JSX.El
               {exampleName}
             </option>
           ))}
+          <option value="-" />
+          <option value="suggest">Suggest An Example</option>
         </select>
       </FlexRow>
     </WidthHeight>

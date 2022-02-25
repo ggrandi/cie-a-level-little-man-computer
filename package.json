@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "parcel serve src/index.html",
-    "build": "rm -rf docs && parcel build src/index.html",
+    "build": "yarn lint && yarn tsc && rm -rf docs && parcel build src/index.html",
     "lint": "eslint src",
     "tsc": "tsc --noEmit"
   },
