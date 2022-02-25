@@ -1,5 +1,3 @@
-import { toBaseNString } from "./utils";
-
 const repository = `ggrandi/cie-a-level-little-man-computer`;
 
 interface IssueParams {
@@ -8,22 +6,14 @@ interface IssueParams {
   labels: string;
 }
 
-const urlEscape = (s: string): string =>
-  s.replaceAll(/[^\w]/g, (char) => `%${toBaseNString(char.charCodeAt(0), 16, 2)}`);
-
 const createIssue = ({ body, title, labels }: IssueParams): void => {
   const url = new URL(
-    `https://github.com/${repository}/issues/new?title=${urlEscape(title)}&body=${urlEscape(
-      body
-    )}&labels=${urlEscape(labels)}`
+    `https://github.com/${repository}/issues/new?title=${encodeURIComponent(
+      title
+    )}&body=${encodeURIComponent(body)}&labels=${encodeURIComponent(labels)}`
   );
 
-  const anchor = document.createElement("a");
-  anchor.setAttribute("href", url.href);
-  anchor.setAttribute("target", "_blank");
-  anchor.setAttribute("rel", "noopener noreferrer");
-
-  anchor.click();
+  open(url, "_blank", "noopener noreferrer");
 };
 
 export const suggestExample = (title: string, example: string): void => {
