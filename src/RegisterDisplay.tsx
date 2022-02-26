@@ -8,7 +8,7 @@ import { ProcessorReducerState } from "./useProcessorReducer";
 import { toBaseNString } from "./utils";
 
 interface RegisterDisplayProps {
-  state: DeepPick<ProcessorReducerState, "registers" | "charOutput" | "translatorErrors">;
+  state: DeepPick<ProcessorReducerState, "registers" | "charOutput" | "translatorErrors" | "error">;
 }
 
 export const RegisterDisplay = ({ state }: RegisterDisplayProps): JSX.Element => {
@@ -45,6 +45,15 @@ export const RegisterDisplay = ({ state }: RegisterDisplayProps): JSX.Element =>
               {formatTranslatorErrors(lineNumber, errors)}
             </ColoredP>
           ))}
+        </>
+      )}
+      {state.error !== undefined && (
+        <>
+          <p>Runtime Error</p>
+          <ColoredP $color="red">
+            A fatal error ({state.error.errorType}) has occured at runtime. Error code is{" "}
+            {state.error.errorCode}
+          </ColoredP>
         </>
       )}
     </>

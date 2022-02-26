@@ -1,3 +1,5 @@
+import { ErrorCode } from "./Processor/Processor";
+
 export const examples = {
   "Add Three Numbers": `
 // adds three numbers together and stores them
@@ -114,7 +116,7 @@ xor:	LDM #${a}
 
 	END
 
-err:	ERR #5
+err:	ERR #${ErrorCode.FailedAssertion}
 val:	#${a}
 `.slice(1);
   })(),

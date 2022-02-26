@@ -1,8 +1,8 @@
 import { Reducer, useReducer } from "react";
 
-import { Processor } from "./Processor/Processor";
+import { ErrorCode, Processor } from "./Processor/Processor";
 import { translator } from "./Processor/translator";
-import { ToReducerActions } from "./type-utils";
+import { Optional, ToReducerActions } from "./type-utils";
 import { createUndoable, redo, setNext, undo, Undoable } from "./undoable";
 import { examples } from "./examples";
 
@@ -36,8 +36,8 @@ export interface ProcessorReducerState {
   translatorErrors: TranslatorErrors[];
   registers: ReturnType<Processor["getRegisters"]>;
   doneRunning: boolean;
-  previousInstruction: ReturnType<Processor["getRegisters"]>["PC"] | undefined;
-  error?: number;
+  previousInstruction: Optional<ReturnType<Processor["getRegisters"]>["PC"]>;
+  error: Optional<{ errorType: keyof typeof ErrorCode; errorCode: ErrorCode }>;
 }
 
 /** function to actually use the state and actions */
@@ -111,6 +111,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // create a character output based on the previous state
       let charOutput = prevState.charOutput;
 
+      // create a variable to store a potential error
+      let error: ProcessorReducerState["error"] = undefined;
+
       // creates a new processor based on the current state
       const processor = new Processor({
         memory: prevState.memory,
@@ -120,6 +123,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         SR: prevState.registers.SR,
         output(char) {
           charOutput += char;
+        },
+        errorLogger(errorType, errorCode) {
+          error = { errorType, errorCode };
         },
       });
 
@@ -142,6 +148,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         registers,
         previousInstruction,
         doneRunning: true,
+        error,
       };
     }
     case "runNextInstruction": {
@@ -152,6 +159,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
 
       // gets the previous charOutput
       let charOutput = prevState.charOutput;
+
+      // create a variable to store a potential error
+      let error: ProcessorReducerState["error"] = undefined;
 
       // set the previous instruction to the previous PC
       const previousInstruction = prevState.registers.PC;
@@ -165,6 +175,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         SR: prevState.registers.SR,
         output(char) {
           charOutput += char;
+        },
+        errorLogger(errorType, errorCode) {
+          error = { errorType, errorCode };
         },
       });
 
@@ -180,7 +193,15 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // fetches the registers from the processor
       const registers = processor.getRegisters();
 
-      return { ...prevState, memory, charOutput, registers, previousInstruction, doneRunning };
+      return {
+        ...prevState,
+        memory,
+        charOutput,
+        registers,
+        previousInstruction,
+        doneRunning,
+        error,
+      };
     }
     case "undo": {
       // undo the code
@@ -224,6 +245,7 @@ const initializeProcessorReducerState = (code: string): ProcessorReducerState =>
   },
   doneRunning: true,
   previousInstruction: undefined,
+  error: undefined,
 });
 
 /** Dispatcher type for the processor reducer */

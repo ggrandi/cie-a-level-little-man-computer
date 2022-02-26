@@ -9,13 +9,14 @@ export enum Registers {
   IX = 0x01,
 }
 
-export enum ErrorCodes {
+export enum ErrorCode {
+  UnknownError,
   MalformedInstruction,
+  FailedAssertion,
   UnrecognizedRegister,
   UnrecognizedOpcode,
   UnrecognizedInstruction,
   UnrecognizedOperand,
-  FailedAssertion,
 }
 
 type InstructionReturns =
@@ -49,6 +50,7 @@ export interface ProcessorConstructorOpts {
     ACC: number;
     memory: string[];
   }): void;
+  errorLogger?(errorType: keyof typeof ErrorCode, errorCode: number): void;
   memory?: Uint16Array;
   PC?: number;
   IX?: number;
@@ -79,12 +81,21 @@ export class Processor implements ProcessorBase {
 
   output: Required<ProcessorConstructorOpts>["output"];
   dumpLogger: Required<ProcessorConstructorOpts>["dumpLogger"];
+  errorLogger(
+    ...[errorType, errorCode]: Parameters<Required<ProcessorConstructorOpts>["errorLogger"]>
+  ): ReturnType<Required<ProcessorConstructorOpts>["errorLogger"]> {
+    console.error(`${errorType}: Processor encountered error instruction with code ${errorCode}`);
+  }
 
   /** representation of the memory */
   #memory: Uint16Array;
   constructor(opts?: ProcessorConstructorOpts) {
     this.output = opts?.output ?? console.log;
     this.dumpLogger = opts?.dumpLogger ?? console.info;
+
+    if (opts?.errorLogger) {
+      this.errorLogger = opts.errorLogger;
+    }
 
     const memoryLength = Processor.MAX_INT + 1;
     if (opts?.memory) {
@@ -517,11 +528,13 @@ export class Processor implements ProcessorBase {
   }
 
   [Opcodes.ERR](errorCode: number): InstructionReturns {
-    if (isKeyOf(errorCode, ErrorCodes)) {
-      throw new Error(`Error: ${ErrorCodes[errorCode]}, error code: ${errorCode}`);
+    if (isKeyOf(errorCode, ErrorCode)) {
+      this.errorLogger(ErrorCode[errorCode] as keyof typeof ErrorCode, errorCode);
+    } else {
+      this.errorLogger("UnknownError", errorCode);
     }
 
-    throw new Error(`Errored with error code ${errorCode}`);
+    return { end: true };
   }
 
   [Opcodes.LSL](n: number): InstructionReturns {

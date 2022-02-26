@@ -3,7 +3,7 @@ import type { CharsToStr, Last, MapKey, StrToChars } from "../type-utils";
 import { match, spaceString } from "../utils";
 
 import { Opcodes } from "./Opcodes";
-import { ErrorCodes, Processor, Registers } from "./Processor";
+import { ErrorCode, Processor, Registers } from "./Processor";
 import { isKeyOf, isStringKeyOf } from "./type-guards";
 import { Err, Ok, Result } from "./result";
 
@@ -364,7 +364,7 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
       // errored instruction
       const malformedInstructionError = {
         opcode: Opcodes.ERR,
-        operand: ErrorCodes.MalformedInstruction,
+        operand: ErrorCode.MalformedInstruction,
         lineNumber,
       } as const;
 

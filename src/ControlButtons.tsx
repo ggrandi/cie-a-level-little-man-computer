@@ -4,7 +4,7 @@ import * as React from "react";
 import { examples } from "./examples";
 import { FlexRow, WidthHeight } from "./goober/styled";
 import { isKeyOf } from "./Processor/type-guards";
-import { suggestExample } from "./suggestExample";
+import { suggestExample } from "./githubIssues";
 import { DeepPick } from "./type-utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
