@@ -34,8 +34,6 @@ type InstructionReturns =
 
 type ProcessorBase = {
   [K in Exclude<keyof typeof Registers, number>]: number;
-} & {
-  [Opcode in Opcodes]: (this: Processor, operand: number) => InstructionReturns;
 };
 
 export interface ProcessorConstructorOpts {
@@ -350,233 +348,169 @@ export class Processor implements ProcessorBase {
   //   this.#memory[address] = Processor.combineInstruction(opcode, operand);
   // }
 
-  //#region Opcode implementations
-  [Opcodes.BRK](_?: number): InstructionReturns {
-    // adds a breakpoint and prints dumps the current memory
-    this.dumpMemory();
+  private runInstruction(opcode: Opcodes, operand: number): InstructionReturns {
+    if (opcode === Opcodes.BRK) {
+      // adds a breakpoint and prints dumps the current memory
+      this.dumpMemory();
 
-    // sets a breakpoint in the code
-    // eslint-disable-next-line no-debugger
-    debugger;
+      // sets a breakpoint in the code
+      // eslint-disable-next-line no-debugger
+      debugger;
+    } else if (opcode === Opcodes.END)
+      //Returns true to signify the program should end
+      return { end: true as const };
+    else if (opcode === Opcodes.INC) {
+      // gets the register from the operand
+      const registerName = this.#registerFromOperand(operand);
+
+      // increments the register and checks for overflow
+      if (++this[registerName] > Processor.MAX_INT) {
+        this[registerName] = Processor.MIN_INT;
+      }
+    } else if (opcode === Opcodes.DEC) {
+      // gets the register from the operand
+      const registerName = this.#registerFromOperand(operand);
+
+      // decrements the register and checks for overflow
+      if (--this[registerName] < Processor.MIN_INT) {
+        this[registerName] = Processor.MAX_INT;
+      }
+    } else if (opcode === Opcodes.ADDN)
+      // Adds a denary number to the accumulator
+      this.ACC += operand;
+    else if (opcode === Opcodes.ADDA) {
+      // fetches the data from the given address
+      const data = this.#getOperand(operand);
+
+      // add the data into the accumulator;
+      this.ACC += data;
+    } else if (opcode === Opcodes.SUBN)
+      // Subtracts a number from the accumulator
+      this.ACC -= operand;
+    else if (opcode === Opcodes.SUBA) {
+      // fetches the data from the given address
+      const data = this.#getOperand(operand);
+
+      // subtracts the data from the accumulator;
+      this.ACC -= data;
+    } else if (opcode === Opcodes.LDD) {
+      // loads the data from memory
+      const data = this.#getOperand(operand);
+
+      // loads the data into the accumulator
+      this.ACC = data;
+    } else if (opcode === Opcodes.LDM)
+      // loads the operand directly into the accumulator
+      this.ACC = Processor.makeIntValid(operand);
+    else if (opcode === Opcodes.LDI) {
+      // get the address stored at the operand
+      const data = this.#getOperand(operand);
+
+      // load the value at address into the accumulator
+      this.ACC = this.#getOperand(data);
+    } else if (opcode === Opcodes.LDX) {
+      // calculates the address by summing the index pointer and the adress specified
+      const calculatedAddress = Processor.makeIntValid(this.IX + operand);
+
+      // copy the contents at that address into the accumulator
+      this.ACC = this.#getOperand(calculatedAddress);
+    } else if (opcode === Opcodes.MOV) {
+      // gets the register from the operand
+      const registerName = this.#registerFromOperand(operand);
+
+      // copy the contents of the accumulator into the given register
+      this[registerName] = this.ACC;
+    } else if (opcode === Opcodes.STO)
+      // Copy the accumulator into the given address
+      this.#setOperand(operand, this.ACC);
+    else if (opcode === Opcodes.LDR)
+      //loads the number n directly into the IX
+      this.IX = Processor.makeIntValid(operand);
+    else if (opcode === Opcodes.JMP)
+      // jumps to the given address
+      return { jump: operand };
+    else if (opcode === Opcodes.IN) {
+      //input a character from the user
+      const char = prompt("input a character: ");
+
+      // gets the ascii for that character
+      const ascii = (char || "\x00").charCodeAt(0);
+
+      // stores the ascii into the accumulator
+      this.ACC = ascii;
+    } else if (opcode === Opcodes.OUT) {
+      // gets the char from the ascii code in the ACC
+      const char = String.fromCharCode(this.ACC);
+
+      // outputs the char
+      this.output(char);
+    } else if (opcode === Opcodes.CMPN) {
+      // compare n and ACC
+      const comparison = operand === this.ACC;
+
+      // set the zero flag to the comparison
+      this.#setFlag(0, comparison);
+    } else if (opcode === Opcodes.CMPA) {
+      // compare the contents of address and ACC
+      const comparison = this.#getOperand(operand) === this.ACC;
+
+      // set the zero flag to the comparison
+      this.#setFlag(0, comparison);
+    } else if (opcode === Opcodes.CMI) {
+      // gets the stored address from the given address
+      const storedAddress = this.#getOperand(operand);
+
+      // gets the data from the stored address
+      const data = this.#getOperand(storedAddress);
+
+      // compares the fetched data and ACC
+      const comparison = this.ACC === data;
+
+      // sets the comparison in the zero flag
+      this.#setFlag(0, comparison);
+    } else if (opcode === Opcodes.JPE) {
+      // if the comparison was true, jump to the given address
+      if (this.getFlag(0) === 1) {
+        return { jump: operand };
+      }
+    } else if (opcode === Opcodes.JPN) {
+      // if the comparison was false, jump to the given address
+      if (this.getFlag(0) === 0) {
+        return { jump: operand };
+      }
+    } else if (opcode === Opcodes.ERR) {
+      if (isKeyOf(operand, ErrorCode)) {
+        this.errorLogger(ErrorCode[operand] as keyof typeof ErrorCode, operand);
+      } else {
+        this.errorLogger("UnknownError", operand);
+      }
+      return { end: true };
+    } else if (opcode === Opcodes.LSL)
+      // shift the accumulator by n bits left
+      this.ACC <<= operand;
+    else if (opcode === Opcodes.LSR)
+      // logically shift the accumulator n bits right
+      this.ACC >>>= operand;
+    else if (opcode === Opcodes.ANDN)
+      // ands the number and the contents of the accumulator
+      this.ACC &= operand;
+    else if (opcode === Opcodes.ANDA)
+      // ands the value at address and the contents of the accumulator
+      this.ACC &= this.#getOperand(operand);
+    else if (opcode === Opcodes.ORN)
+      // ors the number and the contents of the accumulator
+      this.ACC |= operand;
+    else if (opcode === Opcodes.ORA)
+      // ors the value at address and the contents of the accumulator
+      this.ACC |= this.#getOperand(operand);
+    else if (opcode === Opcodes.XORN)
+      // xors the number and the contents of the accumulator
+      this.ACC ^= operand;
+    else if (opcode === Opcodes.XORA)
+      // xors the value at address and the contents of the accumulator
+      this.ACC ^= this.#getOperand(operand);
+    else throw new Error("Unrecognized Opcode");
   }
-
-  [Opcodes.END](_?: number): InstructionReturns {
-    //Returns true to signify the program should end
-    return { end: true as const };
-  }
-
-  [Opcodes.INC](register: number): InstructionReturns {
-    const registerName = this.#registerFromOperand(register);
-
-    // increments the register and checks for overflow
-    if (++this[registerName] > Processor.MAX_INT) {
-      this[registerName] = Processor.MIN_INT;
-    }
-  }
-
-  [Opcodes.DEC](register: number): InstructionReturns {
-    const registerName = this.#registerFromOperand(register);
-
-    // decrements the register and checks for overflow
-    if (--this[registerName] < Processor.MIN_INT) {
-      this[registerName] = Processor.MAX_INT;
-    }
-  }
-
-  [Opcodes.ADDN](n: number): InstructionReturns {
-    // Adds a denary number to the accumulator and checks for overflow
-    this.ACC += n;
-  }
-
-  [Opcodes.ADDA](address: number): InstructionReturns {
-    // fetches the data from the given address
-    const data = this.#getOperand(address);
-
-    // add the data into the accumulator;
-    this.ACC += data;
-  }
-
-  [Opcodes.SUBN](n: number): InstructionReturns {
-    // Subtracts a denary number from the accumulator and checks for underflow
-    this.ACC = (this.ACC - n + Processor.MAX_INT + 1) % (Processor.MAX_INT + 1);
-  }
-
-  [Opcodes.SUBA](address: number): InstructionReturns {
-    // fetches the data from the given address
-    const data = this.#getOperand(address);
-
-    // subtracts the data from the accumulator;
-    this.ACC -= data;
-  }
-
-  [Opcodes.LDD](address: number): InstructionReturns {
-    // loads the data from memory
-    const data = this.#getOperand(address);
-
-    // loads the data into the accumulator
-    this.ACC = data;
-  }
-
-  [Opcodes.LDM](n: number): InstructionReturns {
-    // loads the operand directly into the accumulator
-    this.ACC = Processor.makeIntValid(n);
-  }
-
-  [Opcodes.LDI](address: number): InstructionReturns {
-    // get the address stored at the operand
-    const data = this.#getOperand(address);
-
-    // load the value at address into the accumulator
-    this.ACC = this.#getOperand(data);
-  }
-
-  [Opcodes.LDX](address: number): InstructionReturns {
-    // calculates the address by summing the index pointer and the adress specified
-    const calculatedAddress = Processor.makeIntValid(this.IX + address);
-
-    // copy the contents at that address into the accumulator
-    this.ACC = this.#getOperand(calculatedAddress);
-  }
-
-  [Opcodes.MOV](register: number): InstructionReturns {
-    const registerName = this.#registerFromOperand(register);
-
-    // copy the contents of the accumulator into the given register
-    this[registerName] = this.ACC;
-  }
-
-  [Opcodes.STO](address: number): InstructionReturns {
-    // Copy the accumulator into the given address
-    this.#setOperand(address, this.ACC);
-  }
-
-  [Opcodes.LDR](n: number): InstructionReturns {
-    //loads the number n directly into the IX
-    this.IX = Processor.makeIntValid(n);
-  }
-
-  [Opcodes.JMP](address: number): InstructionReturns {
-    // jumps to the given address
-    return { jump: address };
-  }
-
-  [Opcodes.IN](_?: number): InstructionReturns {
-    //input a character from the user
-    const char = prompt("input a character: ");
-
-    // gets the ascii for that character
-    const ascii = (char || "\x00").charCodeAt(0);
-
-    // stores the ascii into the accumulator
-    this.ACC = ascii;
-  }
-
-  [Opcodes.OUT](_?: number): InstructionReturns {
-    // gets the char from the ascii code in the ACC
-    const char = String.fromCharCode(this.ACC);
-
-    // outputs the char
-    this.output(char);
-  }
-
-  [Opcodes.CMPN](n: number): InstructionReturns {
-    // compare n and ACC
-    const comparison = n === this.ACC;
-
-    // set the zero flag to the comparison
-    this.#setFlag(0, comparison);
-  }
-
-  [Opcodes.CMPA](address: number): InstructionReturns {
-    // compare the contents of address and ACC
-    const comparison = this.#getOperand(address) === this.ACC;
-
-    // set the zero flag to the comparison
-    this.#setFlag(0, comparison);
-  }
-
-  [Opcodes.CMI](address: number): InstructionReturns {
-    // gets the stored address from the given address
-    const storedAddress = this.#getOperand(address);
-
-    // gets the data from the stored address
-    const data = this.#getOperand(storedAddress);
-
-    // compares the fetched data and ACC
-    const comparison = this.ACC === data;
-
-    // sets the comparison in the zero flag
-    this.#setFlag(0, comparison);
-  }
-
-  [Opcodes.JPE](address: number): InstructionReturns {
-    // if the comparison was true, jump to the given address
-    if (this.getFlag(0) === 1) {
-      return { jump: address };
-    }
-
-    return;
-  }
-
-  [Opcodes.JPN](address: number): InstructionReturns {
-    // if the comparison was false, jump to the given address
-    if (this.getFlag(0) === 0) {
-      return { jump: address };
-    }
-
-    return;
-  }
-
-  [Opcodes.ERR](errorCode: number): InstructionReturns {
-    if (isKeyOf(errorCode, ErrorCode)) {
-      this.errorLogger(ErrorCode[errorCode] as keyof typeof ErrorCode, errorCode);
-    } else {
-      this.errorLogger("UnknownError", errorCode);
-    }
-
-    return { end: true };
-  }
-
-  [Opcodes.LSL](n: number): InstructionReturns {
-    // shift the accumulator by n bits left
-    this.ACC <<= n;
-  }
-
-  [Opcodes.LSR](n: number): InstructionReturns {
-    // logically shift the accumulator n bits right
-    this.ACC >>>= n;
-  }
-
-  [Opcodes.ANDN](n: number): InstructionReturns {
-    // ands the number and the contents of the accumulator
-    this.ACC &= n;
-  }
-
-  [Opcodes.ANDA](address: number): InstructionReturns {
-    // ands the value at address and the contents of the accumulator
-    this.ACC &= this.#getOperand(address);
-  }
-
-  [Opcodes.ORN](n: number): InstructionReturns {
-    // ors the number and the contents of the accumulator
-    this.ACC |= n;
-  }
-
-  [Opcodes.ORA](address: number): InstructionReturns {
-    // ors the value at address and the contents of the accumulator
-    this.ACC |= this.#getOperand(address);
-  }
-
-  [Opcodes.XORN](n: number): InstructionReturns {
-    // xors the number and the contents of the accumulator
-    this.ACC ^= n;
-  }
-
-  [Opcodes.XORA](address: number): InstructionReturns {
-    // xors the value at address and the contents of the accumulator
-    this.ACC ^= this.#getOperand(address);
-  }
-  //#endregion
 
   /** loads the assembly code `code` into memory  */
   loadCode(code: string): Uint16Array {
@@ -610,7 +544,7 @@ export class Processor implements ProcessorBase {
     // PC  <- [PC] + 1   PC is incremented by 1
     this.PC++;
 
-    const res = this[this.CIR as Opcodes](this.MDR);
+    const res = this.runInstruction(this.CIR as Opcodes, this.MDR);
 
     // debugger;
 
