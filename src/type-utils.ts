@@ -96,3 +96,11 @@ export type DeepPick<T, Keys extends DeepKey<T>> = DeepHelper<T, Keys> extends i
         : never;
     }
   : never;
+
+export type OneKey<T> = {
+  [K in keyof T]: { [Key in K]: T[K] } & {
+    [Key in Exclude<keyof T, K>]?: undefined;
+  } extends infer Obj
+    ? { [ObjK in keyof Obj]: Obj[ObjK] }
+    : never;
+}[keyof T];

@@ -5,18 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch Edge",
       "request": "launch",
-      "name": "Launch Program",
-      "type": "pwa-node",
-      "program": "${workspaceFolder}/src/main.ts",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "deno",
-      "runtimeArgs": [
-        "run",
-        "--inspect-brk",
-        "--allow-all"
-      ],
-      "attachSimplePort": 9229
+      "type": "pwa-msedge",
+      "url": "http://localhost:1234",
+      "webRoot": "${workspaceFolder}"
     }
   ]
 }

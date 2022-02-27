@@ -6,7 +6,8 @@ export const Border = styled("div")<{
   $borderWidth?: Property.BorderWidth;
   $borderColor?: Property.BorderColor;
   $borderStyle?: Property.BorderStyle;
-}>(({ $borderColor, $borderStyle, $borderWidth }) => {
+  $maxHeight?: Property.MaxHeight;
+}>(({ $borderColor, $borderStyle, $borderWidth, $maxHeight }) => {
   const padding = "2px";
   const borderWidth = $borderWidth || "1px";
 
@@ -17,5 +18,6 @@ export const Border = styled("div")<{
   padding: ${padding};
   width: calc(100% - 2 * ${borderWidth} - 2 * ${padding});
   height: calc(100% - 2 * ${borderWidth} - 2 * ${padding});
+  max-height: ${$maxHeight};
 `;
 });

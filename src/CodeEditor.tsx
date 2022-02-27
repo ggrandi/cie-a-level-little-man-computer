@@ -60,7 +60,7 @@ export const CodeEditor = ({
   );
 
   return (
-    <Border>
+    <Border $maxHeight="95%">
       <FlexRow $justifyContent={"space-between"}>
         <Mask>
           {/* translates the content up to simulate scrollTop in css */}

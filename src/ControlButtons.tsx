@@ -21,7 +21,7 @@ const ControlButton = styled("button")`
 /** Buttons to give instructions to the processor */
 export const ControlButtons = ({ state, dispatch }: ControlButtonsProps): JSX.Element => {
   return (
-    <WidthHeight $height="8%">
+    <WidthHeight $height="5%">
       <FlexRow $alignItems={"center"} $justifyContent={"space-evenly"}>
         <ControlButton
           type="button"

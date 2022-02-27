@@ -114,6 +114,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // create a variable to store a potential error
       let error: ProcessorReducerState["error"] = undefined;
 
+      // create a variable to store whether the program is done running
+      let doneRunning = true;
+
       // creates a new processor based on the current state
       const processor = new Processor({
         memory: prevState.memory,
@@ -124,8 +127,13 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         output(char) {
           charOutput += char;
         },
-        errorLogger(errorType, errorCode) {
+        errorHook(errorType, errorCode) {
           error = { errorType, errorCode };
+        },
+        breakHook() {
+          doneRunning = false;
+          // tells the program to end on a `BRK`
+          return true;
         },
       });
 
@@ -147,7 +155,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         charOutput,
         registers,
         previousInstruction,
-        doneRunning: true,
+        doneRunning,
         error,
       };
     }
@@ -166,6 +174,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // set the previous instruction to the previous PC
       const previousInstruction = prevState.registers.PC;
 
+      // creates a variable to store if a break has occured
+      let encounteredBreak = false;
+
       // creates a new processor based on the current state
       const processor = new Processor({
         memory: prevState.memory,
@@ -176,8 +187,13 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         output(char) {
           charOutput += char;
         },
-        errorLogger(errorType, errorCode) {
+        errorHook(errorType, errorCode) {
           error = { errorType, errorCode };
+        },
+        breakHook() {
+          encounteredBreak = true;
+          // tells the program to end on a `BRK`
+          return true;
         },
       });
 
@@ -185,7 +201,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       const res = processor.runNextInstruction();
 
       // checks if it is done running
-      const doneRunning = Boolean(res && res?.end);
+      const doneRunning = Boolean(res && res?.end && !encounteredBreak);
 
       // fetches the memory from the processor
       const memory = processor.getMemorySlice();

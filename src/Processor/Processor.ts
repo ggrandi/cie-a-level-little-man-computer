@@ -37,8 +37,10 @@ type ProcessorBase = {
 };
 
 export interface ProcessorConstructorOpts {
+  /** hooks when a character is output */
   output?(char: string): void;
-  dumpLogger?(arg: {
+  /** hooks how to dump memory */
+  dumpHook?(dump: {
     IX: number;
     PC: number;
     MAR: number;
@@ -48,7 +50,14 @@ export interface ProcessorConstructorOpts {
     ACC: number;
     memory: string[];
   }): void;
-  errorLogger?(errorType: keyof typeof ErrorCode, errorCode: number): void;
+  /** hooks whenever an error happens
+   * @param errorType a string with the name of the error
+   * @param errorCode the number code of the error
+   */
+  errorHook?(errorType: keyof typeof ErrorCode, errorCode: number): void;
+  /** hooks whenever a `BRK` instruction is encountered
+   * @returns whether the execution should end */
+  breakHook?(): boolean;
   memory?: Uint16Array;
   PC?: number;
   IX?: number;
@@ -78,21 +87,23 @@ export class Processor implements ProcessorBase {
   static readonly MIN_INT = 0;
 
   output: Required<ProcessorConstructorOpts>["output"];
-  dumpLogger: Required<ProcessorConstructorOpts>["dumpLogger"];
-  errorLogger(
-    ...[errorType, errorCode]: Parameters<Required<ProcessorConstructorOpts>["errorLogger"]>
-  ): ReturnType<Required<ProcessorConstructorOpts>["errorLogger"]> {
+  dumpHook: Required<ProcessorConstructorOpts>["dumpHook"];
+  errorHook(
+    ...[errorType, errorCode]: Parameters<Required<ProcessorConstructorOpts>["errorHook"]>
+  ): ReturnType<Required<ProcessorConstructorOpts>["errorHook"]> {
     console.error(`${errorType}: Processor encountered error instruction with code ${errorCode}`);
   }
+  breakHook?: Required<ProcessorConstructorOpts>["breakHook"];
 
   /** representation of the memory */
   #memory: Uint16Array;
   constructor(opts?: ProcessorConstructorOpts) {
     this.output = opts?.output ?? console.log;
-    this.dumpLogger = opts?.dumpLogger ?? console.info;
+    this.dumpHook = opts?.dumpHook ?? console.info;
+    this.breakHook = opts?.breakHook;
 
-    if (opts?.errorLogger) {
-      this.errorLogger = opts.errorLogger;
+    if (opts?.errorHook) {
+      this.errorHook = opts.errorHook;
     }
 
     const memoryLength = Processor.MAX_INT + 1;
@@ -247,7 +258,7 @@ export class Processor implements ProcessorBase {
 
   /** dump the current memory */
   dumpMemory(): void {
-    this.dumpLogger({
+    this.dumpHook({
       IX: this.IX,
       PC: this.PC,
       MAR: this.MAR,
@@ -356,6 +367,11 @@ export class Processor implements ProcessorBase {
       // sets a breakpoint in the code
       // eslint-disable-next-line no-debugger
       debugger;
+
+      // calls the breakHook and ends execution if true
+      if (this.breakHook?.()) {
+        return { end: true };
+      }
     } else if (opcode === Opcodes.END)
       //Returns true to signify the program should end
       return { end: true as const };
@@ -480,9 +496,9 @@ export class Processor implements ProcessorBase {
       }
     } else if (opcode === Opcodes.ERR) {
       if (isKeyOf(operand, ErrorCode)) {
-        this.errorLogger(ErrorCode[operand] as keyof typeof ErrorCode, operand);
+        this.errorHook(ErrorCode[operand] as keyof typeof ErrorCode, operand);
       } else {
-        this.errorLogger("UnknownError", operand);
+        this.errorHook("UnknownError", operand);
       }
       return { end: true };
     } else if (opcode === Opcodes.LSL)
@@ -556,11 +572,9 @@ export class Processor implements ProcessorBase {
   }
 
   /**
-   * Runs a program in memory starting from the `PC`
-   * @param PC the initial program counter (default: 0)
+   * Runs a program in memory starting from `this.PC`
    */
-  runCode(PC = 0): void {
-    this.PC = PC;
+  runCode(): void {
     let res: InstructionReturns;
 
     do {
