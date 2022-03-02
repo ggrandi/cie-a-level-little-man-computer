@@ -91,6 +91,9 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       // set the previous instruction to undefined
       const previousInstruction = undefined;
 
+      // only allow it to run if there where no errors
+      const doneRunning = translatorErrors.length !== 0;
+
       return {
         ...prevState,
         memory,
@@ -99,7 +102,7 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
         translatorErrors,
         registers,
         previousInstruction,
-        doneRunning: false,
+        doneRunning,
       };
     }
     case "runCode": {

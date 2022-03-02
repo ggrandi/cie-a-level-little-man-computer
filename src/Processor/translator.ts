@@ -1,39 +1,20 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { CharsToStr, Last, MapKey, StrToChars } from "../type-utils";
+import type { CharsToStr, Last, MapKey, Optional, StrToChars } from "../type-utils";
 import { match, spaceString } from "../utils";
 
 import { Opcodes } from "./Opcodes";
 import { ErrorCode, Processor, Registers } from "./Processor";
 import { isKeyOf, isStringKeyOf } from "./type-guards";
-import { Err, Ok, Result } from "./result";
+import { Err, isErr, isOk, Ok, Result } from "./result";
 
-const enum InstructionTypes {
-  N,
-  Address,
-  Register,
-  AddressOrN,
-  None,
+const enum InsType {
+  None = "",
+  N = "#n",
+  Address = "<address>",
+  Register = "<register>",
+  BinN = "Bn",
+  HexN = "&n",
 }
-
-/** returns whether the instruction can take an address parameter */
-const isAddressInstruction = (
-  instructionType: InstructionTypes
-): instructionType is InstructionTypes.Address | InstructionTypes.AddressOrN =>
-  instructionType === InstructionTypes.Address || instructionType === InstructionTypes.AddressOrN;
-
-/** returns whether the instruction can take an n parameter */
-const isNInstruction = (
-  instructionType: InstructionTypes
-): instructionType is InstructionTypes.N | InstructionTypes.AddressOrN =>
-  instructionType === InstructionTypes.N || instructionType === InstructionTypes.AddressOrN;
-
-// /** returns whether the instruction can take an AddressOrN parameter */
-// const isAddressOrNInstruction = (
-//   instructionType: InstructionTypes
-// ): instructionType is InstructionTypes.N | InstructionTypes.Address | InstructionTypes.AddressOrN =>
-//   instructionType === InstructionTypes.N ||
-//   instructionType === InstructionTypes.Address ||
-//   instructionType === InstructionTypes.AddressOrN;
 
 // type generated from the opcodes of all the possible instructions
 type Instructions = {
@@ -54,112 +35,114 @@ type Instructions = {
 }[keyof typeof Opcodes];
 
 // Record with the instructions and the type of their operands
-const instructionTypesRecord = match<Readonly<Record<Instructions, InstructionTypes>>>()({
-  ADD: InstructionTypes.AddressOrN,
-  BRK: InstructionTypes.None,
-  CMI: InstructionTypes.Address,
-  CMP: InstructionTypes.AddressOrN,
-  DEC: InstructionTypes.Register,
-  END: InstructionTypes.None,
-  ERR: InstructionTypes.N,
-  IN: InstructionTypes.None,
-  INC: InstructionTypes.Register,
-  JMP: InstructionTypes.Address,
-  JPE: InstructionTypes.Address,
-  JPN: InstructionTypes.Address,
-  LDD: InstructionTypes.Address,
-  LDI: InstructionTypes.Address,
-  LDM: InstructionTypes.N,
-  LDR: InstructionTypes.N,
-  LDX: InstructionTypes.Address,
-  MOV: InstructionTypes.Register,
-  OUT: InstructionTypes.None,
-  STO: InstructionTypes.Address,
-  SUB: InstructionTypes.AddressOrN,
-  LSL: InstructionTypes.N,
-  LSR: InstructionTypes.N,
-  AND: InstructionTypes.AddressOrN,
-  OR: InstructionTypes.AddressOrN,
-  XOR: InstructionTypes.AddressOrN,
+const instructionTypesRecord = match<Readonly<Record<Instructions, ReadonlyArray<InsType>>>>()({
+  LDM: [InsType.N],
+  LDD: [InsType.Address],
+  LDI: [InsType.Address],
+  LDX: [InsType.Address],
+  LDR: [InsType.N],
+  MOV: [InsType.Register],
+  STO: [InsType.Address],
+  ADD: [InsType.Address, InsType.N, InsType.BinN, InsType.HexN],
+  SUB: [InsType.Address, InsType.N, InsType.BinN, InsType.HexN],
+  INC: [InsType.Register],
+  DEC: [InsType.Register],
+  JMP: [InsType.Address],
+  CMP: [InsType.Address, InsType.N],
+  CMI: [InsType.Address],
+  JPE: [InsType.Address],
+  JPN: [InsType.Address],
+  IN: [InsType.None],
+  OUT: [InsType.None],
+  END: [InsType.None],
+  AND: [InsType.Address, InsType.N, InsType.BinN, InsType.HexN],
+  OR: [InsType.Address, InsType.N, InsType.BinN, InsType.HexN],
+  XOR: [InsType.Address, InsType.N, InsType.BinN, InsType.HexN],
+  LSL: [InsType.N],
+  LSR: [InsType.N],
+
+  BRK: [InsType.None],
+  ERR: [InsType.N, InsType.BinN, InsType.HexN],
 } as const);
 
 // create the comment delimiter and regex to remove comments
 const commentDelimiter = "//";
 const commentRegex = new RegExp(`\\s*${commentDelimiter}.*$`);
 
-const denNumber = /#([0-9]+)$/;
-const binNumber = /#B([01]+)$/;
-const hexNumber = /#&([0-9a-fA-F]+)$/;
-
-/** gets an assembly number from a string or gives a reason as to why it is invalid */
-const getN = (n: string): Result<number, string> => {
-  // checks if it has the correct prefix
-  const hasPrefix = n[0] === "#";
-
-  if (!hasPrefix) {
-    return Err("have to prefix number with a #");
+/** creates an assembly number getter */
+const createGetNumber = (prefix: string, base: number): ((n: string) => Result<number, string>) => {
+  // checks that javascript can use the base
+  if (base < 2 || base > 36) {
+    throw new Error("The base must be between 2 and 36");
   }
 
-  let int: number;
+  // creates a set with all the allowed numbers in that base
+  const allowedChars = new Set(Array.from({ length: base }, (_, i) => i.toString(base)));
 
-  if (denNumber.test(n)) {
-    // checks if the number is denary
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const [, intString] = denNumber.exec(n)!;
+  return (n: string) => {
+    const numberPrefix = n[0];
+    n = n.slice(1);
 
-    // converts to denary
-    int = parseInt(intString, 10);
-  } else if (binNumber.test(n)) {
-    // checks if the number is binary
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const [, intString] = binNumber.exec(n)!;
+    // checks if it has the correct prefix
+    const hasPrefix = numberPrefix === prefix;
 
-    // converts to binary
-    int = parseInt(intString, 2);
-  } else if (hexNumber.test(n)) {
-    // checks if the number is hexadecimal
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const [, intString] = hexNumber.exec(n)!;
+    if (!hasPrefix) {
+      return Err(`have to prefix a base ${base} number with a ${prefix}`);
+    }
 
-    // converts to hexadecimal
-    int = parseInt(intString, 16);
-  } else {
-    return Err(`Unrecognizable number '${n.slice(1)}'. Add a B for binary or & for hexadecimal`);
-  }
+    // checks that all the digits are allowed digits
+    for (const char of n) {
+      if (!allowedChars.has(char.toLowerCase())) {
+        return Err(`The digit "${char}" is not allowed in base ${base}`);
+      }
+    }
 
-  // checks if the integer is in the allowed range
-  return Processor.isSafeInt(int)
-    ? Ok(int)
-    : Err(`The number '${int}' is not in the allowed range for the processor`);
+    // parses the integer with a given base
+    const parsedNum = parseInt(n, base);
+
+    // checks if the integer is in the allowed range
+    return Processor.isSafeInt(parsedNum)
+      ? Ok(parsedNum)
+      : Err(`The number "${parsedNum}" is not in the allowed range for the processor`);
+  };
 };
+
+/** checks that the given number is accepted denary */
+const getN = createGetNumber("#", 10);
+
+/** checks that the given number is accepted binary */
+const getBinN = createGetNumber("B", 2);
+
+/** checks that the given number is accepted hexadecimal */
+const getHexN = createGetNumber("&", 16);
 
 /** gets an address from a string */
 const getAddress = (address: string): Result<number, string> => {
   // gets the address from the integer
-  const int = parseInt(address, 10);
+  const int = Number(address);
 
   // checks if it is an actual integer
   if (isNaN(int)) {
-    return Err(`the address '${address}' has to be a base 10 number`);
+    return Err(`the address "${address}" has to be a base 10 number`);
   }
 
   // checks if it is an allowed integer
   return Processor.isSafeInt(int)
     ? Ok(int)
-    : Err(`the address '${address}' is not in the allowed range of the processor`);
+    : Err(`the address "${address}" is not in the allowed range of the processor`);
 };
 
 /** gets the register from a specified string */
 const getRegister = (register: string): Result<number, string> => {
   // cannot be a number in a string
   if (!isNaN(Number(register))) {
-    return Err(`the register '${register}' is not an allowed register`);
+    return Err(`the register "${register}" is not an allowed register`);
   }
 
   // checks if the register is a key of the Registers enum
   return isStringKeyOf(register, Registers)
     ? Ok(Registers[register])
-    : Err(`the register '${register}' is not an allowed register`);
+    : Err(`the register "${register}" is not an allowed register`);
 };
 
 const labelFirstChars = /[a-zA-Z_$]/;
@@ -196,7 +179,7 @@ const getLabelDeclaration = (label: string): Result<string, string> => {
   // checks if the label part is valid
   const checkedLabel = getLabel(label.slice(0, -1));
 
-  if (!checkedLabel.ok) {
+  if (isErr(checkedLabel)) {
     return checkedLabel;
   }
 
@@ -209,9 +192,9 @@ const getLabelDeclaration = (label: string): Result<string, string> => {
 };
 
 /** gets an opcode type from a specified string */
-const getInstructionType = (opcode: string): Result<InstructionTypes, string> => {
+const getInstructionType = (opcode: string): Result<ReadonlyArray<InsType>, string> => {
   if (!isKeyOf(opcode, instructionTypesRecord)) {
-    return Err(`'${opcode}' is not a valid opcode`);
+    return Err(`"${opcode}" is not a valid opcode`);
   }
 
   return Ok(instructionTypesRecord[opcode]);
@@ -223,13 +206,17 @@ type GetOperandReturn =
       address: Err<ReturnType<typeof getAddress>>;
       register: Err<ReturnType<typeof getRegister>>;
       label: Err<ReturnType<typeof getLabel>>;
-      type: [InstructionTypes.None, undefined];
+      hexN: Err<ReturnType<typeof getHexN>>;
+      binN: Err<ReturnType<typeof getBinN>>;
+      type: [InsType.None, undefined];
     }
   | {
       n: Err<ReturnType<typeof getN>>;
       address: Err<ReturnType<typeof getAddress>>;
       register: Err<ReturnType<typeof getRegister>>;
       label: Err<ReturnType<typeof getLabel>>;
+      hexN: Err<ReturnType<typeof getHexN>>;
+      binN: Err<ReturnType<typeof getBinN>>;
       type: undefined;
     }
   | {
@@ -237,59 +224,74 @@ type GetOperandReturn =
       address: ReturnType<typeof getAddress>;
       register: ReturnType<typeof getRegister>;
       label: ReturnType<typeof getLabel>;
-      type:
-        | [InstructionTypes.N, Ok<ReturnType<typeof getN>>["data"]]
-        | [InstructionTypes.Address, Ok<ReturnType<typeof getAddress>>["data"]]
-        | [InstructionTypes.Register, Ok<ReturnType<typeof getRegister>>["data"]]
-        | [InstructionTypes.AddressOrN, Ok<ReturnType<typeof getLabel>>["data"]];
+      hexN: ReturnType<typeof getHexN>;
+      binN: ReturnType<typeof getBinN>;
+      type: SuccessfulOperand;
     };
 
+type SuccessfulOperand =
+  | undefined
+  | [InsType.N, Ok<ReturnType<typeof getN>>["data"]]
+  | [InsType.Address, Ok<ReturnType<typeof getAddress>>["data"]]
+  | [InsType.Register, Ok<ReturnType<typeof getRegister>>["data"]]
+  | [InsType.BinN, Ok<ReturnType<typeof getBinN>>["data"]]
+  | [InsType.HexN, Ok<ReturnType<typeof getHexN>>["data"]]
+  | [InsType.None, Ok<ReturnType<typeof getBinN>>["data"]]
+  | [InsType.Address, Ok<ReturnType<typeof getLabel>>["data"]];
+
 const getOperand = (operand?: string): GetOperandReturn => {
-  let type:
-    | undefined
-    | [InstructionTypes.N, Ok<typeof n>["data"]]
-    | [InstructionTypes.Address, Ok<typeof address>["data"]]
-    | [InstructionTypes.Register, Ok<typeof register>["data"]]
-    | [InstructionTypes.AddressOrN, Ok<typeof label>["data"]];
+  let type: SuccessfulOperand;
 
   if (operand === undefined) {
     const invalidMessage = Err("have to pass an operand");
     return {
-      n: invalidMessage as Err<typeof n>,
-      address: invalidMessage as Err<typeof address>,
-      register: invalidMessage as Err<typeof register>,
-      label: invalidMessage as Err<typeof label>,
-      type: [InstructionTypes.None, undefined] as [InstructionTypes.None, undefined],
+      n: invalidMessage,
+      address: invalidMessage,
+      register: invalidMessage,
+      label: invalidMessage,
+      binN: invalidMessage,
+      hexN: invalidMessage,
+      type: [InsType.None, undefined],
     };
   }
 
   // checks if it is a number
   const n = getN(operand);
-  if (n.ok) type = [InstructionTypes.N, n.data];
+  if (isOk(n)) type = [InsType.N, n.data];
 
   // checks if it is a number
   const address = getAddress(operand);
-  if (address.ok) type = [InstructionTypes.Address, address.data];
+  if (isOk(address)) type = [InsType.Address, address.data];
 
   // checks if it is a register
   const register = getRegister(operand);
-  if (register.ok) type = [InstructionTypes.Register, register.data];
+  if (isOk(register)) type = [InsType.Register, register.data];
 
   // checks if it is a label
   const label = getLabel(operand);
-  if (label.ok) type = [InstructionTypes.AddressOrN, label.data];
+  if (isOk(label)) type = [InsType.Address, label.data];
+
+  // checks if it is a label
+  const hexN = getHexN(operand);
+  if (isOk(hexN)) type = [InsType.HexN, hexN.data];
+
+  // checks if it is a label
+  const binN = getBinN(operand);
+  if (isOk(binN)) type = [InsType.BinN, binN.data];
 
   if (type === undefined) {
     return {
-      n: n as Err<typeof n>,
-      address: address as Err<typeof address>,
-      register: register as Err<typeof register>,
-      label: label as Err<typeof label>,
+      n,
+      address,
+      register,
+      label,
+      binN,
+      hexN,
       type: undefined,
     };
   }
 
-  return { n, address, register, label, type };
+  return { n, address, register, label, binN, hexN, type };
 };
 
 type TranslatorErrorLogger = (lineNumber: number, errors: string[]) => void;
@@ -379,7 +381,7 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
 
       const labelDeclaration = getLabelDeclaration(operators[0]);
 
-      if (labelDeclaration.ok) {
+      if (isOk(labelDeclaration)) {
         if (!labelMap.has(labelDeclaration.data)) {
           // store the label in the label map if it doesn't already exist
           labelMap.set(labelDeclaration.data, address);
@@ -403,15 +405,17 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
       const instruction = operators[0] as keyof typeof instructionTypesRecord;
 
       // if it is an opcode, it removes it from the operators
-      if (instructionType.ok) {
+      if (isOk(instructionType)) {
         operators.shift();
       }
 
       const operand = getOperand(operators[0]);
 
+      const numberOperand = [operand.n, operand.binN, operand.hexN];
+
       // check that the second parameter is correct
-      if (!instructionType.ok && operand.type?.[0] !== InstructionTypes.N) {
-        if (operators.length === 3 && !labelDeclaration.ok) {
+      if (isErr(instructionType) && operand.type?.[0] !== InsType.N) {
+        if (operators.length === 3 && isErr(labelDeclaration)) {
           // there is an issue with the label
           logError(lineNumber, [labelDeclaration.error]);
         } else if (operators.length === 2) {
@@ -423,114 +427,77 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
           const secondInstruction = getInstructionType(operators[1]);
           const secondOperand = getOperand(operators[1]);
 
-          if (secondInstruction.ok && !labelDeclaration.ok) {
+          if (isOk(secondInstruction) && isErr(labelDeclaration)) {
             // if the second value is an instruction, then there is an issue with the label
             logError(lineNumber, [labelDeclaration.error]);
-          } else if (
-            (secondOperand.type?.[0] === InstructionTypes.N ||
-              secondOperand.type?.[0] === InstructionTypes.AddressOrN) &&
-            !labelDeclaration.ok
-          ) {
+
+            return malformedInstructionError;
+          } else if (secondOperand.type?.[0] === InsType.N && isErr(labelDeclaration)) {
             // if the second value is a number, it could be either an address or a label issue
             logError(lineNumber, [
               `either label error: "${labelDeclaration.error}"`,
               `or instruction error: "${instructionType.error}"`,
             ]);
           } else {
-            logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
+            logError(lineNumber, [`an unknown error has occured near "${operators[0]}"`]);
           }
-        } else if (operators.length === 1 && !operand.n.ok) {
+
+          return malformedInstructionError;
+        } else if (operators.length === 1 && numberOperand.filter(isOk).length === 0) {
           // it has to be either an opcode or a number and since both aren't true, display both error messages
           logError(lineNumber, [
             `either instruction error: "${instructionType.error}"`,
-            `or number error: "${operand.n.error}"`,
-          ]);
-        } else {
-          logError(lineNumber, [`an unknown error has occured near '${operators[0]}'`]);
-        }
-
-        return malformedInstructionError;
-      }
-
-      // means all of the checks have failed, if so error
-      if (!operand.type) {
-        logError(lineNumber, [`malformed operand '${operators[0]}'`]);
-
-        return malformedInstructionError;
-      }
-
-      let opcode: Opcodes;
-
-      // check that the operand matches up with the opcode
-      if (instructionType.ok) {
-        if (instructionType.data === InstructionTypes.AddressOrN) {
-          const addressInstruction = instruction + "A";
-          const numberInstruction = instruction + "N";
-
-          if (isAddressInstruction(operand.type[0]) && isStringKeyOf(addressInstruction, Opcodes)) {
-            // checks that the operand is an address
-            opcode = Opcodes[addressInstruction];
-          } else if (isNInstruction(operand.type[0]) && isStringKeyOf(numberInstruction, Opcodes)) {
-            // checks that the operand is a number
-            opcode = Opcodes[numberInstruction];
-          } else {
-            // operand is neither a number or address
-            logError(lineNumber, [
-              `the operand for ${instruction} should either be a number or address`,
-            ]);
-            return malformedInstructionError;
-          }
-        } else if (instructionType.data === InstructionTypes.N) {
-          // checks that the operand is a number
-          if (isNInstruction(operand.type[0]) && isStringKeyOf(instruction, Opcodes)) {
-            opcode = Opcodes[instruction];
-          } else {
-            // operand is not a number so error
-            logError(lineNumber, [`the operand for ${instruction} should be a number`]);
-
-            return malformedInstructionError;
-          }
-        } else if (instructionType.data === InstructionTypes.Address) {
-          // checks that the operand is an address
-          if (isAddressInstruction(operand.type[0]) && isStringKeyOf(instruction, Opcodes)) {
-            opcode = Opcodes[instruction];
-          } else {
-            // operand is not a address so error
-            logError(lineNumber, [`the operand for ${instruction} should be an address`]);
-            return malformedInstructionError;
-          }
-        } else if (instructionType.data === InstructionTypes.Register) {
-          // checks that the operand is a register
-          if (
-            operand.type[0] === InstructionTypes.Register &&
-            isStringKeyOf(instruction, Opcodes)
-          ) {
-            opcode = Opcodes[instruction];
-          } else {
-            // operand is not a address so error
-            logError(lineNumber, [`the operand for ${instruction} should be a register`]);
-            return malformedInstructionError;
-          }
-        } else if (instructionType.data === InstructionTypes.None) {
-          // checks that the operand is none
-          if (operand.type[0] === InstructionTypes.None && isStringKeyOf(instruction, Opcodes)) {
-            opcode = Opcodes[instruction];
-          } else {
-            // operand is not a address so error
-            logError(lineNumber, [`the instruction ${instruction} should have no operands`]);
-            return malformedInstructionError;
-          }
-        } else {
-          logError(lineNumber, [
-            `unknown instruction type '${instructionType.data}' at instruction ${instruction}`,
+            `or number error: "${numberOperand
+              .filter(isErr)
+              .map(({ error }) => error)
+              .join(`" or "`)}"`,
           ]);
           return malformedInstructionError;
         }
-      } else if (operand.type[0] === InstructionTypes.N) {
+      }
+
+      if (operand.type === undefined) {
+        logError(lineNumber, [`an unknown error has occured near "${operators[0]}"`]);
+        return malformedInstructionError;
+      }
+
+      let opcode: Optional<Opcodes> = undefined;
+
+      // check that the operand matches up with the opcode
+      if (isOk(instructionType)) {
+        const needsEnding = !isKeyOf(instruction, Opcodes);
+
+        for (const type of [...instructionType.data, new Error()]) {
+          if (type === operand.type[0]) {
+            // if the instruction matches, it is valid so end the loop
+            if (needsEnding) {
+              // if it needs an ending, add A if the type is address if not add N
+              opcode = Opcodes[`${instruction}${type === InsType.Address ? "A" : "N"}`];
+            } else {
+              // if not set the opcode to the instruction opcode
+              opcode = Opcodes[instruction];
+            }
+            break;
+          } else if (type instanceof Error) {
+            logError(lineNumber, [
+              `The instruction "${instruction}" needs a "${instructionType.data.join(
+                `" or "`
+              )}" operand and a "${operand.type[0]}" was provided instead`,
+            ]);
+
+            return malformedInstructionError;
+          }
+        }
+      } else if (numberOperand.filter(isOk).length !== 0) {
         // the instruction just contains a number
         opcode = Opcodes.END;
       } else {
-        logError(lineNumber, [`unknown error near '${instruction}'`]);
+        logError(lineNumber, [`unknown error near "${instruction}"`]);
+        return malformedInstructionError;
+      }
+
+      if (opcode === undefined) {
+        logError(lineNumber, [`unknown error near "${instruction}"`]);
         return malformedInstructionError;
       }
 
@@ -564,7 +531,7 @@ export function translator(this: TranslatorThis | void, assemblyCode: string): U
   }
 
   // output the labels to the assigned
-  if (this && this.getLabels) {
+  if (!hasErrored && this && this.getLabels) {
     this.getLabels(labelMap);
   }
 

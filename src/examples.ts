@@ -7,14 +7,14 @@ start:	LDD first
 	ADD second
 	ADD third
 	STO total
-	CMP #&60	// makes sure the value stored was the correct sum in order to check the processor
+	CMP #60	// makes sure the value stored was the correct sum in order to check the processor
 	JPN err
 	END
 
 err:	ERR #5
-first:	#&10
-second:	#&30
-third:	#&20
+first:	#10
+second:	#30
+third:	#20
 total:			// implied to start at 0
 `.slice(1),
   "Hello World!": `
@@ -28,20 +28,20 @@ start:	LDX string	// loads the next value of the char[]
 	JMP start	// loop back to the beginning
 end:	END
 		// ASCII value:
-string:	#&48	// H
-	#&65	// e
-	#&6C	// l
-	#&6C	// l
-	#&6F	// o
-	#&2C	// ,
-	#&20	//  
-	#&57	// W
-	#&6F	// o
-	#&72	// r
-	#&6C	// l
-	#&64	// d
-	#&21	// !
-	#&0A	// \\n
+string:	&48	// H
+	&65	// e
+	&6C	// l
+	&6C	// l
+	&6F	// o
+	&2C	// ,
+	&20	//  
+	&57	// W
+	&6F	// o
+	&72	// r
+	&6C	// l
+	&64	// d
+	&21	// !
+	&0A	// \\n
 `.slice(1),
   "Sum an Array": `
 	LDM #0		// Load 0 into ACC
@@ -120,4 +120,24 @@ err:	ERR #${ErrorCode.FailedAssertion}
 val:	#${a}
 `.slice(1);
   })(),
+  "Multiply Two Numbers": `
+// adds the first number once to the total
+start:	LDD total
+	ADD n1
+	STO total
+// checks how many times are left to add
+	LDD n2
+	DEC ACC
+	STO n2
+// if it is 0 times jump to the end if not repeat
+	CMP #0
+	JPE end
+	JMP start
+
+end:	LDD total
+	END
+
+n1:	#12
+n2:	#11
+total:`.slice(1),
 };

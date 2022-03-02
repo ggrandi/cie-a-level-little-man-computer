@@ -5,7 +5,7 @@ export const cast = <T>(val: T): T => val;
 export const match =
   <Schema>(): (<T extends Schema>(
     val: T
-  ) => keyof Schema extends keyof T ? (keyof T extends keyof Schema ? T : void) : void) =>
+  ) => keyof Schema extends keyof T ? (keyof T extends keyof Schema ? T : unknown) : unknown) =>
   <T extends Schema>(val: T) =>
     val as never;
 
