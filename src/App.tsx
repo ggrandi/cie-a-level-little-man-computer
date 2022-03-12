@@ -24,7 +24,7 @@ export const App = (): JSX.Element => {
           </FlexColumn>
         </FlexChild>
         <FlexChild $flex={1}>
-          <FlexColumn $alignItems={"center"} $justifyContent={"center"} $padding={"5px"}>
+          <FlexColumn $alignItems={"center"} $justifyContent={"center"}>
             <RegisterDisplay {...{ state }} />
           </FlexColumn>
         </FlexChild>

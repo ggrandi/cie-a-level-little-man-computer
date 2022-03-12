@@ -5,6 +5,8 @@ import { translator } from "./Processor/translator";
 import { Optional, ToReducerActions } from "./type-utils";
 import { createUndoable, redo, setNext, undo, Undoable } from "./undoable";
 import { examples } from "./examples";
+import { suggestExample } from "./githubIssues";
+import { saveFile } from "./nativeFilesystem";
 
 /** the different types of actions the reducer can have */
 export type ProcessorActions = ToReducerActions<{
@@ -20,6 +22,8 @@ export type ProcessorActions = ToReducerActions<{
   undo: Record<string, never>;
   redo: Record<string, never>;
   loadExample: { example: keyof typeof examples };
+  submitExample: Record<string, never>;
+  saveFile: Record<string, never>;
 }>;
 
 interface TranslatorErrors {
@@ -242,6 +246,18 @@ const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prev
       const codeState = setNext(prevState.codeState, { code, cursorPos: 0 });
 
       return { ...prevState, codeState };
+    }
+    case "submitExample": {
+      suggestExample(
+        prompt("What is the name of your example?") ?? "",
+        prevState.codeState.present.code
+      );
+      return prevState;
+    }
+    case "saveFile": {
+      saveFile({ content: prevState.codeState.present.code });
+
+      return prevState;
     }
   }
 };

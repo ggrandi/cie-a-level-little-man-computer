@@ -1,11 +1,11 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { CharsToStr, Last, MapKey, Optional, StrToChars } from "../type-utils";
 import { match, spaceString } from "../utils";
+import { Err, isErr, isOk, Ok, Result } from "../result";
 
 import { Opcodes } from "./Opcodes";
 import { ErrorCode, Processor, Registers } from "./Processor";
 import { isKeyOf, isStringKeyOf } from "./type-guards";
-import { Err, isErr, isOk, Ok, Result } from "./result";
 
 const enum InsType {
   None = "",

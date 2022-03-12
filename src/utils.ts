@@ -26,3 +26,11 @@ export const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
 
   return newObj as Pick<T, K>;
 };
+
+/** sleeps for `ms` milliseconds */
+export const sleep = (ms?: number): Promise<void> =>
+  new Promise<void>((res) => setTimeout(res, ms));
+
+/** rejects after `ms` milliseconds */
+export const sleepReject = (ms?: number, reason?: string): Promise<void> =>
+  new Promise<void>((_, rej) => setTimeout(() => rej(reason), ms));

@@ -71,8 +71,7 @@ export type DeepOmit<T, Keys extends DeepKey<T>> = DeepHelper<T, Keys> extends i
         : Key]: T[Key] extends Record<keyof never, unknown>
         ? Key extends keyof H
           ? H[Key] extends DeepKey<T[Key]>
-            ? //@ts-expect-error ignores the casting
-              DeepOmit<T[Key], H[Key]>
+            ? DeepOmit<T[Key], H[Key]>
             : T[Key]
           : T[Key]
         : T[Key];
@@ -90,8 +89,7 @@ export type DeepPick<T, Keys extends DeepKey<T>> = DeepHelper<T, Keys> extends i
         ? H[Key] extends null
           ? T[Key]
           : H[Key] extends DeepKey<T[Key]>
-          ? //@ts-expect-error ignores the casting
-            DeepPick<T[Key], H[Key]>
+          ? DeepPick<T[Key], H[Key]>
           : never
         : never;
     }
