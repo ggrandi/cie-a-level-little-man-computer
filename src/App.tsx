@@ -8,10 +8,26 @@ import { ControlButtons } from "./ControlButtons";
 import { MemoryDisplay } from "./MemoryDisplay";
 import { useProcessorReducer } from "./useProcessorReducer";
 import { RegisterDisplay } from "./RegisterDisplay";
+import { useGlobalListener } from "./useGlobalListener";
+import { useFullscreen } from "./useFullscreen";
 
 /** the main component for the visualisation website */
 export const App = (): JSX.Element => {
   const [state, dispatch] = useProcessorReducer();
+
+  useGlobalListener("keydown", (ev) => {
+    if (ev.ctrlKey || ev.metaKey) {
+      switch (ev.key) {
+        case "s":
+          ev.preventDefault();
+          dispatch({ type: "saveFile" });
+          break;
+      }
+    }
+  });
+
+  const [supportsFullscreen, requestFullscreen, fullscreenElementRef] =
+    useFullscreen<HTMLDivElement>();
 
   return (
     <>
@@ -19,8 +35,8 @@ export const App = (): JSX.Element => {
       <FlexRowMaxWidth>
         <FlexChild $flex={3}>
           <FlexColumn>
-            <CodeEditor {...{ state, dispatch }} />
-            <ControlButtons {...{ state, dispatch }} />
+            <CodeEditor {...{ state, dispatch, fullscreenElementRef }} />
+            <ControlButtons {...{ state, dispatch, requestFullscreen, supportsFullscreen }} />
           </FlexColumn>
         </FlexChild>
         <FlexChild $flex={1}>

@@ -4,12 +4,13 @@ import * as React from "react";
 import { ColoredSpan, FlexRow } from "./goober/styled";
 import { Border } from "./goober/styled/Border";
 import { AsParamNames } from "./goober/styled/utils";
-import { DeepPick } from "./type-utils";
+import { DeepPick, Nullable } from "./type-utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface CodeEditorProps {
   state: DeepPick<ProcessorReducerState, "codeState" | "translatorErrors">;
   dispatch: ProcessorReducerDispatch;
+  fullscreenElementRef?: React.MutableRefObject<Nullable<HTMLDivElement>>;
 }
 
 const Textarea = styled("textarea", React.forwardRef)`
@@ -47,11 +48,12 @@ export const CodeEditor = ({
     translatorErrors,
   },
   dispatch,
+  fullscreenElementRef,
 }: CodeEditorProps): JSX.Element => {
   const [scrollTop, setScrollTop] = React.useState(0);
 
   const textareaRef = React.useCallback(
-    (node: HTMLTextAreaElement | null) => {
+    (node: Nullable<HTMLTextAreaElement>) => {
       if (node) {
         node.selectionStart = node.selectionEnd = cursorPos;
       }
@@ -60,7 +62,7 @@ export const CodeEditor = ({
   );
 
   return (
-    <Border $maxHeight="95%">
+    <Border $maxHeight="88%" $backgroundColor="white" ref={fullscreenElementRef}>
       <FlexRow $justifyContent={"space-between"}>
         <Mask>
           {/* translates the content up to simulate scrollTop in css */}

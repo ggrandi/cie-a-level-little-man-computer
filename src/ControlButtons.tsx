@@ -7,11 +7,14 @@ import { useLoadFile } from "./nativeFilesystem";
 import { isKeyOf } from "./Processor/type-guards";
 import { isOk } from "./result";
 import { DeepPick } from "./type-utils";
+import { useFullscreen } from "./useFullscreen";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface ControlButtonsProps {
   state: DeepPick<ProcessorReducerState, "doneRunning">;
   dispatch: ProcessorReducerDispatch;
+  supportsFullscreen: ReturnType<typeof useFullscreen>[0];
+  requestFullscreen: ReturnType<typeof useFullscreen>[1];
 }
 
 const ControlButton = styled("button")`
@@ -24,6 +27,8 @@ const ControlButton = styled("button")`
 export const ControlButtons = ({
   state: { doneRunning },
   dispatch,
+  supportsFullscreen,
+  requestFullscreen,
 }: ControlButtonsProps): JSX.Element => {
   const [loadFile, helper] = useLoadFile();
 
@@ -56,6 +61,8 @@ export const ControlButtons = ({
           }}>
           step by one
         </ControlButton>
+      </FlexRow>
+      <FlexRow $alignItems={"center"} $justifyContent={"space-evenly"}>
         <select
           title="code examples"
           defaultValue=""
@@ -104,6 +111,16 @@ export const ControlButtons = ({
           load code
         </ControlButton>
         {helper}
+        {supportsFullscreen && (
+          <ControlButton
+            type="button"
+            onClick={(_ev) => {
+              // requests fullscreen
+              requestFullscreen?.();
+            }}>
+            fullscreen editor
+          </ControlButton>
+        )}
       </FlexRow>
     </WidthHeight>
   );

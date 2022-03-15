@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { Err, Ok, Result } from "./result";
-import { Optional } from "./type-utils";
+import { Nullable, Optional } from "./type-utils";
 import { sleep } from "./utils";
 
 interface SaveFileParams {
@@ -90,7 +90,7 @@ const useLoadFileFn: UseLoadFile = () => [
 let onChange: Optional<AbortController>;
 
 const useLoadFileFallback: UseLoadFile = () => {
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const inputRef = React.useRef<Nullable<HTMLInputElement>>(null);
 
   const input = <input type="file" hidden accept={fileExtension} ref={inputRef} />;
 

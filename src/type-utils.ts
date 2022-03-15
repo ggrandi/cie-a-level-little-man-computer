@@ -102,3 +102,5 @@ export type OneKey<T> = {
     ? { [ObjK in keyof Obj]: Obj[ObjK] }
     : never;
 }[keyof T];
+
+export type Nullable<T> = T | null;

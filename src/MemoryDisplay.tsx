@@ -22,6 +22,7 @@ const MemoryGrid = styled("div")`
   height: 100%;
   @media screen and (max-width: ${WIDTH_SWITCH}px) {
     height: unset;
+    grid-template: repeat(32, 1fr) / repeat(8, 1fr);
   }
 `;
 
@@ -35,7 +36,7 @@ interface MemoryCellProps {
 const MemoryCellDisplay = styled("pre")`
   margin: 0;
   @media screen and (max-width: ${WIDTH_SWITCH}px) {
-    font-size: 10%;
+    font-size: 0.8em;
   }
 `;
 
