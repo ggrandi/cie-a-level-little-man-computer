@@ -8,7 +8,7 @@ import { DeepPick, Nullable } from "./type-utils";
 import { ProcessorReducerDispatch, ProcessorReducerState } from "./useProcessorReducer";
 
 interface CodeEditorProps {
-  state: DeepPick<ProcessorReducerState, "codeState" | "translatorErrors">;
+  state: DeepPick<ProcessorReducerState, "codeState.present" | "translatorErrors">;
   dispatch: ProcessorReducerDispatch;
   fullscreenElementRef?: React.MutableRefObject<Nullable<HTMLDivElement>>;
 }

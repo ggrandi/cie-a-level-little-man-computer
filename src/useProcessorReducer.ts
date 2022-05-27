@@ -32,7 +32,7 @@ interface TranslatorErrors {
 }
 
 /** the state of the processor reducer */
-export interface ProcessorReducerState {
+export type ProcessorReducerState = {
   codeState: Undoable<{ code: string; cursorPos: number }>;
   memory: Uint16Array;
   charOutput: string;
@@ -42,7 +42,7 @@ export interface ProcessorReducerState {
   doneRunning: boolean;
   previousInstruction: Optional<ReturnType<Processor["getRegisters"]>["PC"]>;
   error: Optional<{ errorType: keyof typeof ErrorCode; errorCode: ErrorCode }>;
-}
+};
 
 /** function to actually use the state and actions */
 const processorReducer: Reducer<ProcessorReducerState, ProcessorActions> = (prevState, action) => {

@@ -1,11 +1,11 @@
-export interface Undoable<T> {
+export type Undoable<T> = {
   /** the current state of the undoable */
   present: T;
   /** the past states of the undoable */
   past: T[];
   /** the future states of the undoable */
   future: T[];
-}
+};
 
 /** creates a new undoable with the given `present` */
 export const createUndoable = <T>(present: T): Undoable<T> => ({
